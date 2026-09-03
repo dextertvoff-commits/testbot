@@ -3510,7 +3510,7 @@ client.on(
 
                         .setDescription(
                             `Configuration de **${interaction.guild.name}**.\n\n` +
-                            'Chaque serveur possède ses propres paramètres.'
+                            'Seul le staff agrée à accès '
                         )
 
                         .setFooter({
