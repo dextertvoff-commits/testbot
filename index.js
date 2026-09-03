@@ -108,7 +108,7 @@ function configBaseServeur() {
             panel: {
 
                 title:
-                    '🎫 SUPPORT // LE REFUGE',
+                    '🎫 SUPPORT',
 
                 description:
                     '**Besoin d’aide ?**\n\nClique sur le bouton pour ouvrir une demande.',
@@ -120,7 +120,7 @@ function configBaseServeur() {
                     '#F47B20',
 
                 footer:
-                    'LE REFUGE FR • Support'
+                    'Ticket • Support'
 
             },
 
@@ -140,7 +140,7 @@ function configBaseServeur() {
                     '#F47B20',
 
                 footer:
-                    'LE REFUGE FR • Support',
+                    'Ticket • Support',
 
                 showAvatar:
                     true
@@ -163,7 +163,7 @@ function configBaseServeur() {
                 '#F47B20',
 
             footer:
-                'LE REFUGE FR • Annonce'
+                'Rédiger • Annonce'
 
         },
 
@@ -198,7 +198,7 @@ function configBaseServeur() {
                     '#9146FF',
 
                 footer:
-                    'LE REFUGE FR • Twitch',
+                    'STREAMERS • Twitch',
 
                 buttonLabel:
                     'Regarder le live',
@@ -1090,7 +1090,7 @@ async function genererTranscript(
         '============================================================\n';
 
     transcript +=
-        '                 TRANSCRIPT TICKET - LE REFUGE FR\n';
+        '                 TRANSCRIPT TICKET\n';
 
     transcript +=
         '============================================================\n\n';
