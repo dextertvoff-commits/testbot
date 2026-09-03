@@ -54,9 +54,31 @@ const SERVEUR_ID = '1544812678843736076';
 // CONFIG.JSON
 // ======================================================
 
+const DATA_DIR =
+    process.env.RAILWAY_ENVIRONMENT
+        ? '/app/data'
+        : __dirname;
+
+
+if (
+    !fs.existsSync(
+        DATA_DIR
+    )
+) {
+
+    fs.mkdirSync(
+        DATA_DIR,
+        {
+            recursive: true
+        }
+    );
+
+}
+
+
 const CONFIG_PATH =
     path.join(
-        __dirname,
+        DATA_DIR,
         'config.json'
     );
 
