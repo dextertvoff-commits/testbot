@@ -242,6 +242,9 @@ function configBase() {
             welcomeShowAvatar:
                 true,
 
+            welcomeImageUrl:
+                '',
+
             goodbyeTitle:
                 'Un membre vient de partir... 😢',
 
@@ -252,12 +255,14 @@ function configBase() {
                 '#ED4245',
 
             goodbyeShowAvatar:
-                true
+                true,
+
+            goodbyeImageUrl:
+                ''
 
         }
 
     };
-
 }
 
 
@@ -2504,334 +2509,163 @@ client.once(
 
 
 // ======================================================
-// BIENVENUE
+// ATTENTE IMAGE BIENVENUE / DÉPART
+// ======================================================
+
+const attenteImageBienvenue =
+    new Map();
+
+
+// ======================================================
+// RÉCUPÉRER IMAGE BIENVENUE / DÉPART
 // ======================================================
 
 client.on(
-    'guildMemberAdd',
-    async member => {
+    Events.MessageCreate,
+    async message => {
+
+        if (
+            message.author.bot
+        ) {
+
+            return;
+
+        }
+
+
+        const attente =
+            attenteImageBienvenue.get(
+                message.author.id
+            );
+
+
+        if (
+            !attente
+        ) {
+
+            return;
+
+        }
+
+
+        if (
+            attente.channelId !==
+            message.channel.id
+        ) {
+
+            return;
+
+        }
+
+
+        if (
+            Date.now() >
+            attente.expiresAt
+        ) {
+
+            attenteImageBienvenue.delete(
+                message.author.id
+            );
+
+
+            await message.reply(
+                '❌ Temps écoulé. Recommence depuis `/bot-panel`.'
+            );
+
+
+            return;
+
+        }
+
+
+        const attachment =
+            message.attachments.first();
+
+
+        if (
+            !attachment
+        ) {
+
+            await message.reply(
+                '❌ Tu dois envoyer une image en pièce jointe.'
+            );
+
+
+            return;
+
+        }
+
+
+        const contentType =
+            attachment.contentType ||
+            '';
+
+
+        const extensionImage =
+            /\.(png|jpe?g|gif|webp)$/i.test(
+                attachment.name ||
+                attachment.url
+            );
+
+
+        if (
+            !contentType.startsWith(
+                'image/'
+            ) &&
+            !extensionImage
+        ) {
+
+            await message.reply(
+                '❌ Le fichier envoyé n’est pas une image.'
+            );
+
+
+            return;
+
+        }
+
 
         const config =
             chargerConfig();
 
 
         if (
-            !config.welcome.welcomeEnabled
+            attente.type ===
+            'welcome'
         ) {
 
-            return;
+            config.welcome.welcomeImageUrl =
+                attachment.url;
+
+        }
+
+        else {
+
+            config.welcome.goodbyeImageUrl =
+                attachment.url;
 
         }
 
 
-        const salon =
-            member.guild.channels.cache.get(
-                config.welcome.welcomeChannelId
-            );
+        sauvegarderConfig(
+            config
+        );
 
 
-        if (
-            !salon
-        ) {
+        attenteImageBienvenue.delete(
+            message.author.id
+        );
 
-            return;
 
-        }
+        await message.reply(
 
+            attente.type === 'welcome'
 
-        try {
+                ? '✅ Image d’arrivée enregistrée.'
 
-            const imagePath =
-                path.join(
-                    __dirname,
-                    'assets',
-                    'welcome.png'
-                );
+                : '✅ Image de départ enregistrée.'
 
-
-            const files =
-                [];
-
-
-            const embed =
-                new EmbedBuilder()
-
-                    .setColor(
-                        couleurValide(
-                            config.welcome.welcomeColor,
-                            '#F47B20'
-                        )
-                    )
-
-                    .setTitle(
-                        remplacerVariables(
-                            config.welcome.welcomeTitle,
-                            member
-                        )
-                    )
-
-                    .setDescription(
-                        remplacerVariables(
-                            config.welcome.welcomeMessage,
-                            member
-                        )
-                    )
-
-                    .setFooter({
-
-                        text:
-                            `Compte Discord créé il y a ${calculerDuree(member.user.createdAt)}`
-
-                    })
-
-                    .setTimestamp();
-
-
-            if (
-                config.welcome.welcomeShowAvatar
-            ) {
-
-                embed.setThumbnail(
-
-                    member.user.displayAvatarURL({
-
-                        extension:
-                            'png',
-
-                        size:
-                            256
-
-                    })
-
-                );
-
-            }
-
-
-            if (
-                fs.existsSync(
-                    imagePath
-                )
-            ) {
-
-                files.push(
-
-                    new AttachmentBuilder(
-
-                        imagePath,
-
-                        {
-
-                            name:
-                                'welcome.png'
-
-                        }
-
-                    )
-
-                );
-
-
-                embed.setImage(
-                    'attachment://welcome.png'
-                );
-
-            }
-
-
-            await salon.send({
-
-                embeds: [
-                    embed
-                ],
-
-                files:
-                    files
-
-            });
-
-        }
-
-        catch (error) {
-
-            console.error(
-                '❌ Erreur bienvenue :',
-                error
-            );
-
-        }
-
-    }
-);
-
-
-// ======================================================
-// DÉPART
-// ======================================================
-
-client.on(
-    'guildMemberRemove',
-    async member => {
-
-        const config =
-            chargerConfig();
-
-
-        if (
-            !config.welcome.goodbyeEnabled
-        ) {
-
-            return;
-
-        }
-
-
-        const salon =
-            member.guild.channels.cache.get(
-                config.welcome.goodbyeChannelId
-            );
-
-
-        if (
-            !salon
-        ) {
-
-            return;
-
-        }
-
-
-        try {
-
-            const imagePath =
-                path.join(
-                    __dirname,
-                    'assets',
-                    'goodbye.png'
-                );
-
-
-            const files =
-                [];
-
-
-            const duree =
-                member.joinedAt
-
-                    ? calculerDuree(
-                        member.joinedAt
-                    )
-
-                    : 'Durée inconnue';
-
-
-            const embed =
-                new EmbedBuilder()
-
-                    .setColor(
-                        couleurValide(
-                            config.welcome.goodbyeColor,
-                            '#ED4245'
-                        )
-                    )
-
-                    .setTitle(
-                        remplacerVariables(
-                            config.welcome.goodbyeTitle,
-                            member
-                        )
-                    )
-
-                    .setDescription(
-                        remplacerVariables(
-                            config.welcome.goodbyeMessage,
-                            member
-                        )
-                    )
-
-                    .setFooter({
-
-                        text:
-                            `Avait rejoint le serveur il y a ${duree}`
-
-                    })
-
-                    .setTimestamp();
-
-
-            if (
-                config.welcome.goodbyeShowAvatar
-            ) {
-
-                embed.setThumbnail(
-
-                    member.user.displayAvatarURL({
-
-                        extension:
-                            'png',
-
-                        size:
-                            256
-
-                    })
-
-                );
-
-            }
-
-
-            if (
-                fs.existsSync(
-                    imagePath
-                )
-            ) {
-
-                files.push(
-
-                    new AttachmentBuilder(
-
-                        imagePath,
-
-                        {
-
-                            name:
-                                'goodbye.png'
-
-                        }
-
-                    )
-
-                );
-
-
-                embed.setImage(
-                    'attachment://goodbye.png'
-                );
-
-            }
-
-
-            await salon.send({
-
-                embeds: [
-                    embed
-                ],
-
-                files:
-                    files
-
-            });
-
-        }
-
-        catch (error) {
-
-            console.error(
-                '❌ Erreur départ :',
-                error
-            );
-
-        }
+        );
 
     }
 );
@@ -2846,6 +2680,136 @@ client.on(
     async interaction => {
 
         try {
+
+
+// ======================================================
+// IMAGE BIENVENUE / DÉPART
+// ======================================================
+
+            if (
+                interaction.isButton() &&
+                [
+                    'welcome_image',
+                    'goodbye_image'
+                ].includes(
+                    interaction.customId
+                )
+            ) {
+
+                const type =
+                    interaction.customId ===
+                    'welcome_image'
+
+                        ? 'welcome'
+
+                        : 'goodbye';
+
+
+                attenteImageBienvenue.set(
+
+                    interaction.user.id,
+
+                    {
+
+                        type:
+                            type,
+
+                        channelId:
+                            interaction.channel.id,
+
+                        expiresAt:
+                            Date.now() +
+                            120000
+
+                    }
+
+                );
+
+
+                await interaction.reply({
+
+                    content:
+                        type ===
+                        'welcome'
+
+                            ? '🖼️ Envoie maintenant **l’image d’arrivée** dans ce salon.\nTu as **2 minutes**.'
+
+                            : '🖼️ Envoie maintenant **l’image de départ** dans ce salon.\nTu as **2 minutes**.',
+
+                    flags:
+                        MessageFlags.Ephemeral
+
+                });
+
+
+                return;
+
+            }
+
+
+// ======================================================
+// SUPPRIMER IMAGE BIENVENUE / DÉPART
+// ======================================================
+
+            if (
+                interaction.isButton() &&
+                [
+                    'welcome_image_delete',
+                    'goodbye_image_delete'
+                ].includes(
+                    interaction.customId
+                )
+            ) {
+
+                const config =
+                    chargerConfig();
+
+
+                const welcome =
+                    interaction.customId ===
+                    'welcome_image_delete';
+
+
+                if (
+                    welcome
+                ) {
+
+                    config.welcome.welcomeImageUrl =
+                        '';
+
+                }
+
+                else {
+
+                    config.welcome.goodbyeImageUrl =
+                        '';
+
+                }
+
+
+                sauvegarderConfig(
+                    config
+                );
+
+
+                await interaction.reply({
+
+                    content:
+                        welcome
+
+                            ? '✅ Image d’arrivée supprimée.'
+
+                            : '✅ Image de départ supprimée.',
+
+                    flags:
+                        MessageFlags.Ephemeral
+
+                });
+
+
+                return;
+
+            }
 
 
 // ======================================================
@@ -2977,6 +2941,7 @@ client.on(
 
             }
 
+
 // ======================================================
 // PANEL BIENVENUE
 // ======================================================
@@ -2993,25 +2958,38 @@ client.on(
                         .addComponents(
 
                             new ButtonBuilder()
+
                                 .setCustomId(
                                     'welcome_toggle'
                                 )
+
                                 .setLabel(
                                     'Activer/Désactiver arrivée'
                                 )
-                                .setEmoji('📥')
+
+                                .setEmoji(
+                                    '📥'
+                                )
+
                                 .setStyle(
                                     ButtonStyle.Primary
                                 ),
 
+
                             new ButtonBuilder()
+
                                 .setCustomId(
                                     'goodbye_toggle'
                                 )
+
                                 .setLabel(
                                     'Activer/Désactiver départ'
                                 )
-                                .setEmoji('📤')
+
+                                .setEmoji(
+                                    '📤'
+                                )
+
                                 .setStyle(
                                     ButtonStyle.Primary
                                 )
@@ -3025,25 +3003,38 @@ client.on(
                         .addComponents(
 
                             new ButtonBuilder()
+
                                 .setCustomId(
                                     'welcome_channel'
                                 )
+
                                 .setLabel(
                                     'Salon arrivée'
                                 )
-                                .setEmoji('📥')
+
+                                .setEmoji(
+                                    '📥'
+                                )
+
                                 .setStyle(
                                     ButtonStyle.Secondary
                                 ),
 
+
                             new ButtonBuilder()
+
                                 .setCustomId(
                                     'goodbye_channel'
                                 )
+
                                 .setLabel(
                                     'Salon départ'
                                 )
-                                .setEmoji('📤')
+
+                                .setEmoji(
+                                    '📤'
+                                )
+
                                 .setStyle(
                                     ButtonStyle.Secondary
                                 )
@@ -3057,25 +3048,38 @@ client.on(
                         .addComponents(
 
                             new ButtonBuilder()
+
                                 .setCustomId(
                                     'welcome_edit'
                                 )
+
                                 .setLabel(
                                     'Modifier arrivée'
                                 )
-                                .setEmoji('✏️')
+
+                                .setEmoji(
+                                    '✏️'
+                                )
+
                                 .setStyle(
                                     ButtonStyle.Secondary
                                 ),
 
+
                             new ButtonBuilder()
+
                                 .setCustomId(
                                     'goodbye_edit'
                                 )
+
                                 .setLabel(
                                     'Modifier départ'
                                 )
-                                .setEmoji('✏️')
+
+                                .setEmoji(
+                                    '✏️'
+                                )
+
                                 .setStyle(
                                     ButtonStyle.Secondary
                                 )
@@ -3089,27 +3093,123 @@ client.on(
                         .addComponents(
 
                             new ButtonBuilder()
+
                                 .setCustomId(
                                     'welcome_avatar_toggle'
                                 )
+
                                 .setLabel(
                                     'Avatar arrivée'
                                 )
-                                .setEmoji('🖼️')
+
+                                .setEmoji(
+                                    '🖼️'
+                                )
+
                                 .setStyle(
                                     ButtonStyle.Secondary
                                 ),
 
+
                             new ButtonBuilder()
+
                                 .setCustomId(
                                     'goodbye_avatar_toggle'
                                 )
+
                                 .setLabel(
                                     'Avatar départ'
                                 )
-                                .setEmoji('🖼️')
+
+                                .setEmoji(
+                                    '🖼️'
+                                )
+
                                 .setStyle(
                                     ButtonStyle.Secondary
+                                )
+
+                        );
+
+
+                const r5 =
+                    new ActionRowBuilder()
+
+                        .addComponents(
+
+                            new ButtonBuilder()
+
+                                .setCustomId(
+                                    'welcome_image'
+                                )
+
+                                .setLabel(
+                                    'Image arrivée'
+                                )
+
+                                .setEmoji(
+                                    '🖼️'
+                                )
+
+                                .setStyle(
+                                    ButtonStyle.Secondary
+                                ),
+
+
+                            new ButtonBuilder()
+
+                                .setCustomId(
+                                    'goodbye_image'
+                                )
+
+                                .setLabel(
+                                    'Image départ'
+                                )
+
+                                .setEmoji(
+                                    '🖼️'
+                                )
+
+                                .setStyle(
+                                    ButtonStyle.Secondary
+                                ),
+
+
+                            new ButtonBuilder()
+
+                                .setCustomId(
+                                    'welcome_image_delete'
+                                )
+
+                                .setLabel(
+                                    'Supprimer arrivée'
+                                )
+
+                                .setEmoji(
+                                    '🗑️'
+                                )
+
+                                .setStyle(
+                                    ButtonStyle.Danger
+                                ),
+
+
+                            new ButtonBuilder()
+
+                                .setCustomId(
+                                    'goodbye_image_delete'
+                                )
+
+                                .setLabel(
+                                    'Supprimer départ'
+                                )
+
+                                .setEmoji(
+                                    '🗑️'
+                                )
+
+                                .setStyle(
+                                    ButtonStyle.Danger
                                 )
 
                         );
@@ -3125,7 +3225,8 @@ client.on(
                         r1,
                         r2,
                         r3,
-                        r4
+                        r4,
+                        r5
                     ]
 
                 });
@@ -3246,13 +3347,17 @@ client.on(
 
                         .setCustomId(
                             isWelcome
+
                                 ? 'select_welcome_channel'
+
                                 : 'select_goodbye_channel'
                         )
 
                         .setPlaceholder(
                             isWelcome
+
                                 ? 'Choisis le salon arrivée'
+
                                 : 'Choisis le salon départ'
                         )
 
@@ -3273,7 +3378,9 @@ client.on(
 
                     content:
                         isWelcome
+
                             ? '📥 Choisis le salon arrivée :'
+
                             : '📤 Choisis le salon départ :',
 
                     components: [
@@ -3385,13 +3492,17 @@ client.on(
 
                         .setCustomId(
                             isWelcome
+
                                 ? 'modal_welcome_edit'
+
                                 : 'modal_goodbye_edit'
                         )
 
                         .setTitle(
                             isWelcome
+
                                 ? 'Modifier arrivée'
+
                                 : 'Modifier départ'
                         );
 
@@ -3409,7 +3520,9 @@ client.on(
 
                         .setValue(
                             isWelcome
+
                                 ? config.welcome.welcomeTitle
+
                                 : config.welcome.goodbyeTitle
                         )
 
@@ -3435,7 +3548,9 @@ client.on(
 
                         .setValue(
                             isWelcome
+
                                 ? config.welcome.welcomeMessage
+
                                 : config.welcome.goodbyeMessage
                         )
 
@@ -3461,7 +3576,9 @@ client.on(
 
                         .setValue(
                             isWelcome
+
                                 ? config.welcome.welcomeColor
+
                                 : config.welcome.goodbyeColor
                         )
 
@@ -3602,7 +3719,6 @@ client.on(
                 return;
 
             }
-
 
 // ======================================================
 // PANEL TICKETS
