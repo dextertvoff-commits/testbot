@@ -1,0 +1,75 @@
+{
+    "tickets": {
+        "staffRoleId": "1544833341122027530",
+        "logsChannelId": "1544847913228705792",
+        "types": {
+            "bdsm": {
+                "name": "BDSM",
+                "emoji": "💡​",
+                "description": "TEST",
+                "categoryId": "1544833462446592061"
+            }
+        },
+        "staffMembers": {
+            "447436036608360448": {
+                "emoji": "💛"
+            }
+        },
+        "panel": {
+            "title": "🎫 Ticket",
+            "description": "**Besoin d’aide ?**\n\nTEST TEST",
+            "buttonLabel": "Ouvre",
+            "color": "#F47B20",
+            "footer": "Ceci est un test"
+        },
+        "ticketEmbed": {
+            "title": "{emoji} TICKET // {type}",
+            "description": "Bonjour {member},\n\nTon ticket a bien été ouvert.\n\n**Type :** {emoji} {type}\n\nUn membre du Staff va te répondre dès que possible.",
+            "color": "#F47B20",
+            "footer": "héhéhé",
+            "showAvatar": true
+        }
+    },
+    "welcome": {
+        "welcomeEnabled": true,
+        "goodbyeEnabled": true,
+        "welcomeChannelId": "1544847864667054161",
+        "goodbyeChannelId": "",
+        "welcomeTitle": "Ho ! Un nouveau membre !",
+        "welcomeMessage": "🎉 Bienvenue {member} 🎉",
+        "welcomeColor": "#F47B20",
+        "welcomeShowAvatar": true,
+        "goodbyeTitle": "Un membre vient de partir... 😢",
+        "goodbyeMessage": "À bientôt **{username}** 👋",
+        "goodbyeColor": "#ED4245",
+        "goodbyeShowAvatar": true
+    },
+    "annonces": {
+        "channelId": "1544847864667054161",
+        "color": "#F47B20",
+        "footer": "ICI CES PARIS"
+    },
+    "streams": {
+        "channelId": "1544847864667054161",
+        "checkInterval": 60,
+        "streamers": {
+            "dexter_off_": {
+                "userId": "777386357",
+                "login": "dexter_off_",
+                "displayName": "Dexter_OFF_",
+                "profileImageUrl": "https://static-cdn.jtvnw.net/jtv_user_pictures/48f2318c-d464-4d11-a909-626cac2134cf-profile_image-300x300.png",
+                "isLive": false,
+                "messageId": "",
+                "lastStreamId": ""
+            }
+        },
+        "embed": {
+            "title": "🔴 {streamer} EST EN LIVE !",
+            "description": "**{title}**\n\n🎮 **Jeu :** {game}\n👥 **Spectateurs :** {viewers}",
+            "color": "#9146FF",
+            "footer": "LE REFUGE FR • Twitch",
+            "buttonLabel": "Regarder le live",
+            "mentionEveryone": true
+        }
+    }
+}
