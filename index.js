@@ -2507,7 +2507,288 @@ client.once(
     }
 );
 
+// ======================================================
+// BIENVENUE
+// ======================================================
 
+client.on(
+    'guildMemberAdd',
+    async member => {
+
+        console.log(
+            `📥 Nouveau membre : ${member.user.tag}`
+        );
+
+
+        const config =
+            chargerConfig();
+
+
+        if (
+            !config.welcome.welcomeEnabled
+        ) {
+
+            console.log(
+                '⚠️ Messages de bienvenue désactivés.'
+            );
+
+            return;
+
+        }
+
+
+        const salon =
+            member.guild.channels.cache.get(
+                config.welcome.welcomeChannelId
+            );
+
+
+        if (
+            !salon
+        ) {
+
+            console.log(
+                `❌ Salon bienvenue introuvable : ${config.welcome.welcomeChannelId}`
+            );
+
+            return;
+
+        }
+
+
+        try {
+
+            const embed =
+                new EmbedBuilder()
+
+                    .setColor(
+                        couleurValide(
+                            config.welcome.welcomeColor,
+                            '#F47B20'
+                        )
+                    )
+
+                    .setTitle(
+                        remplacerVariables(
+                            config.welcome.welcomeTitle,
+                            member
+                        )
+                    )
+
+                    .setDescription(
+                        remplacerVariables(
+                            config.welcome.welcomeMessage,
+                            member
+                        )
+                    )
+
+                    .setFooter({
+                        text:
+                            `Compte Discord créé il y a ${calculerDuree(member.user.createdAt)}`
+                    })
+
+                    .setTimestamp();
+
+
+            if (
+                config.welcome.welcomeShowAvatar
+            ) {
+
+                embed.setThumbnail(
+                    member.user.displayAvatarURL({
+                        extension:
+                            'png',
+
+                        size:
+                            256
+                    })
+                );
+
+            }
+
+
+            if (
+                config.welcome.welcomeImageUrl
+            ) {
+
+                embed.setImage(
+                    config.welcome.welcomeImageUrl
+                );
+
+            }
+
+
+            await salon.send({
+                embeds: [
+                    embed
+                ]
+            });
+
+
+            console.log(
+                `✅ Message de bienvenue envoyé pour ${member.user.tag}`
+            );
+
+        }
+
+        catch (error) {
+
+            console.error(
+                '❌ Erreur bienvenue :',
+                error
+            );
+
+        }
+
+    }
+);
+
+
+// ======================================================
+// DÉPART
+// ======================================================
+
+client.on(
+    'guildMemberRemove',
+    async member => {
+
+        console.log(
+            `📤 Membre parti : ${member.user.tag}`
+        );
+
+
+        const config =
+            chargerConfig();
+
+
+        if (
+            !config.welcome.goodbyeEnabled
+        ) {
+
+            console.log(
+                '⚠️ Messages de départ désactivés.'
+            );
+
+            return;
+
+        }
+
+
+        const salon =
+            member.guild.channels.cache.get(
+                config.welcome.goodbyeChannelId
+            );
+
+
+        if (
+            !salon
+        ) {
+
+            console.log(
+                `❌ Salon départ introuvable : ${config.welcome.goodbyeChannelId}`
+            );
+
+            return;
+
+        }
+
+
+        try {
+
+            const duree =
+                member.joinedAt
+
+                    ? calculerDuree(
+                        member.joinedAt
+                    )
+
+                    : 'Durée inconnue';
+
+
+            const embed =
+                new EmbedBuilder()
+
+                    .setColor(
+                        couleurValide(
+                            config.welcome.goodbyeColor,
+                            '#ED4245'
+                        )
+                    )
+
+                    .setTitle(
+                        remplacerVariables(
+                            config.welcome.goodbyeTitle,
+                            member
+                        )
+                    )
+
+                    .setDescription(
+                        remplacerVariables(
+                            config.welcome.goodbyeMessage,
+                            member
+                        )
+                    )
+
+                    .setFooter({
+                        text:
+                            `Avait rejoint le serveur il y a ${duree}`
+                    })
+
+                    .setTimestamp();
+
+
+            if (
+                config.welcome.goodbyeShowAvatar
+            ) {
+
+                embed.setThumbnail(
+                    member.user.displayAvatarURL({
+                        extension:
+                            'png',
+
+                        size:
+                            256
+                    })
+                );
+
+            }
+
+
+            if (
+                config.welcome.goodbyeImageUrl
+            ) {
+
+                embed.setImage(
+                    config.welcome.goodbyeImageUrl
+                );
+
+            }
+
+
+            await salon.send({
+                embeds: [
+                    embed
+                ]
+            });
+
+
+            console.log(
+                `✅ Message de départ envoyé pour ${member.user.tag}`
+            );
+
+        }
+
+        catch (error) {
+
+            console.error(
+                '❌ Erreur départ :',
+                error
+            );
+
+        }
+
+    }
+);
 // ======================================================
 // ATTENTE IMAGE BIENVENUE / DÉPART
 // ======================================================
