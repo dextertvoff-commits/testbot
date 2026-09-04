@@ -24,7 +24,8 @@ const {
     REST,
     Routes,
     PermissionFlagsBits,
-    MessageFlags
+    MessageFlags,
+    WebhookClient
 } = require('discord.js');
 
 
@@ -33,12 +34,19 @@ const {
 // ======================================================
 
 const client = new Client({
+
     intents: [
+
         GatewayIntentBits.Guilds,
+
         GatewayIntentBits.GuildMembers,
+
         GatewayIntentBits.GuildMessages,
+
         GatewayIntentBits.MessageContent
+
     ]
+
 });
 
 
@@ -46,7 +54,8 @@ const client = new Client({
 // DISCORD
 // ======================================================
 
-const CLIENT_ID = '1544812044862365716';
+const CLIENT_ID =
+    '1544812044862365716';
 
 
 // ======================================================
@@ -54,8 +63,11 @@ const CLIENT_ID = '1544812044862365716';
 // ======================================================
 
 const DATA_DIR =
+
     process.env.RAILWAY_ENVIRONMENT
+
         ? '/app/data'
+
         : __dirname;
 
 
@@ -66,21 +78,35 @@ if (
 ) {
 
     fs.mkdirSync(
+
         DATA_DIR,
+
         {
-            recursive: true
+
+            recursive:
+                true
+
         }
+
     );
 
 }
 
 
 const CONFIG_PATH =
+
     path.join(
+
         DATA_DIR,
+
         'config.json'
+
     );
 
+
+// ======================================================
+// CONFIG PAR DÉFAUT D'UN SERVEUR
+// ======================================================
 
 function configBaseServeur() {
 
@@ -108,7 +134,7 @@ function configBaseServeur() {
             panel: {
 
                 title:
-                    '🎫 SUPPORT',
+                    '🎫 SUPPORT // LE REFUGE',
 
                 description:
                     '**Besoin d’aide ?**\n\nClique sur le bouton pour ouvrir une demande.',
@@ -120,7 +146,7 @@ function configBaseServeur() {
                     '#F47B20',
 
                 footer:
-                    'Ticket • Support'
+                    'LE REFUGE FR • Support'
 
             },
 
@@ -140,7 +166,7 @@ function configBaseServeur() {
                     '#F47B20',
 
                 footer:
-                    'Ticket • Support',
+                    'LE REFUGE FR • Support',
 
                 showAvatar:
                     true
@@ -163,7 +189,7 @@ function configBaseServeur() {
                 '#F47B20',
 
             footer:
-                'Rédiger • Annonce'
+                'LE REFUGE FR • Annonce'
 
         },
 
@@ -198,7 +224,7 @@ function configBaseServeur() {
                     '#9146FF',
 
                 footer:
-                    'STREAMERS • Twitch',
+                    'LE REFUGE FR • Twitch',
 
                 buttonLabel:
                     'Regarder le live',
@@ -259,9 +285,44 @@ function configBaseServeur() {
             goodbyeImageUrl:
                 ''
 
+        },
+
+
+        // ==================================================
+        // APPARENCE DU BOT
+        // ==================================================
+
+        appearance: {
+
+            nickname:
+                '',
+
+            avatarUrl:
+                '',
+
+            bannerUrl:
+                ''
+
         }
 
     };
+
+}
+
+
+// ======================================================
+// CONFIG GLOBALE
+// ======================================================
+
+function configBase() {
+
+    return {
+
+        guilds:
+            {}
+
+    };
+
 }
 
 
@@ -329,22 +390,6 @@ function fusionnerDefauts(
 
 
 // ======================================================
-// CONFIG GLOBALE MULTI-SERVEURS
-// ======================================================
-
-function configBase() {
-
-    return {
-
-        guilds:
-            {}
-
-    };
-
-}
-
-
-// ======================================================
 // CHARGER CONFIG GLOBALE
 // ======================================================
 
@@ -391,6 +436,16 @@ function chargerConfigGlobale() {
                 )
 
             );
+
+
+        if (
+            !config.guilds
+        ) {
+
+            config.guilds =
+                {};
+
+        }
 
 
         return config;
@@ -456,85 +511,6 @@ function sauvegarderConfigGlobale(
 
 
 // ======================================================
-// MIGRATION ANCIENNE CONFIG MONO-SERVEUR
-// ======================================================
-
-function migrerAncienneConfigSiNecessaire() {
-
-    const config =
-        chargerConfigGlobale();
-
-
-    if (
-        config.guilds
-    ) {
-
-        return;
-
-    }
-
-
-    const ancienFormat =
-        config.tickets ||
-        config.welcome ||
-        config.annonces ||
-        config.streams;
-
-
-    if (
-        !ancienFormat
-    ) {
-
-        sauvegarderConfigGlobale(
-            configBase()
-        );
-
-        return;
-
-    }
-
-
-    const guild =
-        client.guilds.cache.first();
-
-
-    if (
-        !guild
-    ) {
-
-        console.log(
-            '⚠️ Migration config : aucun serveur disponible.'
-        );
-
-        return;
-
-    }
-
-
-    const nouvelleConfig =
-        configBase();
-
-
-    nouvelleConfig.guilds[
-        guild.id
-    ] = fusionnerDefauts(
-        config,
-        configBaseServeur()
-    );
-
-
-    sauvegarderConfigGlobale(
-        nouvelleConfig
-    );
-
-
-    console.log(
-        `✅ Ancienne configuration migrée vers le serveur : ${guild.name} (${guild.id})`
-    );
-
-}
-
-// ======================================================
 // CHARGER CONFIG D'UN SERVEUR
 // ======================================================
 
@@ -542,34 +518,24 @@ function chargerConfigServeur(
     guildId
 ) {
 
-    const configGlobale =
+    const globalConfig =
         chargerConfigGlobale();
 
 
     if (
-        !configGlobale.guilds
-    ) {
-
-        configGlobale.guilds =
-            {};
-
-    }
-
-
-    if (
-        !configGlobale.guilds[
+        !globalConfig.guilds[
             guildId
         ]
     ) {
 
-        configGlobale.guilds[
+        globalConfig.guilds[
             guildId
         ] =
             configBaseServeur();
 
 
         sauvegarderConfigGlobale(
-            configGlobale
+            globalConfig
         );
 
     }
@@ -577,7 +543,7 @@ function chargerConfigServeur(
 
     fusionnerDefauts(
 
-        configGlobale.guilds[
+        globalConfig.guilds[
             guildId
         ],
 
@@ -586,7 +552,7 @@ function chargerConfigServeur(
     );
 
 
-    return configGlobale.guilds[
+    return globalConfig.guilds[
         guildId
     ];
 
@@ -602,28 +568,28 @@ function sauvegarderConfigServeur(
     configServeur
 ) {
 
-    const configGlobale =
+    const globalConfig =
         chargerConfigGlobale();
 
 
     if (
-        !configGlobale.guilds
+        !globalConfig.guilds
     ) {
 
-        configGlobale.guilds =
+        globalConfig.guilds =
             {};
 
     }
 
 
-    configGlobale.guilds[
+    globalConfig.guilds[
         guildId
     ] =
         configServeur;
 
 
     sauvegarderConfigGlobale(
-        configGlobale
+        globalConfig
     );
 
 }
@@ -639,14 +605,12 @@ function couleurValide(
 ) {
 
     if (
-
         typeof couleur ===
             'string' &&
 
         /^#[0-9A-Fa-f]{6}$/.test(
             couleur
         )
-
     ) {
 
         return couleur;
@@ -1000,598 +964,129 @@ function remplacerVariablesStream(
         );
 
 }
-
-
 // ======================================================
-// TRANSCRIPT TICKET
+// APPARENCE PUBLIQUE DU BOT
 // ======================================================
 
-async function genererTranscript(
-    channel
+function obtenirNomPublicServeur(
+    guild
 ) {
 
-    let tousLesMessages =
-        [];
-
-    let dernierMessageId =
-        null;
-
-
-    while (
-        true
-    ) {
-
-        const options = {
-            limit:
-                100
-        };
-
-
-        if (
-            dernierMessageId
-        ) {
-
-            options.before =
-                dernierMessageId;
-
-        }
-
-
-        const messages =
-            await channel.messages.fetch(
-                options
-            );
-
-
-        if (
-            !messages.size
-        ) {
-
-            break;
-
-        }
-
-
-        tousLesMessages.push(
-            ...messages.values()
+    const config =
+        chargerConfigServeur(
+            guild.id
         );
 
 
-        dernierMessageId =
-            messages.last().id;
-
-
-        if (
-            messages.size <
-            100
-        ) {
-
-            break;
-
-        }
-
-    }
-
-
-    tousLesMessages.sort(
-
-        (a, b) =>
-            a.createdTimestamp -
-            b.createdTimestamp
-
+    return (
+        config.appearance.nickname ||
+        client.user.username
     );
 
-
-    let transcript =
-        '';
+}
 
 
-    transcript +=
-        '============================================================\n';
+function obtenirAvatarPublicServeur(
+    guild
+) {
 
-    transcript +=
-        '                 TRANSCRIPT TICKET\n';
-
-    transcript +=
-        '============================================================\n\n';
-
-    transcript +=
-        `Salon : #${channel.name}\n`;
-
-    transcript +=
-        `ID Salon : ${channel.id}\n`;
-
-    transcript +=
-        `Serveur : ${channel.guild.name}\n`;
-
-    transcript +=
-        `Date du transcript : ${new Date().toLocaleString('fr-FR')}\n\n`;
-
-    transcript +=
-        '============================================================\n\n';
+    const config =
+        chargerConfigServeur(
+            guild.id
+        );
 
 
-    for (
-        const message
-        of tousLesMessages
-    ) {
+    return (
+        config.appearance.avatarUrl ||
+        client.user.displayAvatarURL({
+            extension:
+                'png',
 
-        const date =
-            new Date(
-                message.createdTimestamp
-            )
-                .toLocaleString(
-                    'fr-FR'
+            size:
+                256
+        })
+    );
+
+}
+
+
+// ======================================================
+// APPLIQUER LE SURNOM SUR LE SERVEUR
+// ======================================================
+
+async function appliquerSurnomServeur(
+    guild
+) {
+
+    try {
+
+        const config =
+            chargerConfigServeur(
+                guild.id
+            );
+
+
+        const me =
+            guild.members.me ||
+
+            await guild.members
+                .fetchMe()
+                .catch(
+                    () => null
                 );
 
 
-        transcript +=
-            `[${date}] ${message.author.tag} (${message.author.id})\n`;
-
-
         if (
-            message.content
+            !me
         ) {
 
-            transcript +=
-                `${message.content}\n`;
+            return;
 
         }
 
 
-        for (
-            const attachment
-            of message.attachments.values()
-        ) {
+        await me.setNickname(
 
-            transcript +=
-                `[PIÈCE JOINTE] ${attachment.name}\n`;
+            config.appearance.nickname ||
+            null
 
-            transcript +=
-                `${attachment.url}\n`;
-
-        }
-
-
-        for (
-            const embed
-            of message.embeds
-        ) {
-
-            transcript +=
-                '[EMBED]\n';
-
-
-            if (
-                embed.title
-            ) {
-
-                transcript +=
-                    `Titre : ${embed.title}\n`;
-
-            }
-
-
-            if (
-                embed.description
-            ) {
-
-                transcript +=
-                    `Description : ${embed.description}\n`;
-
-            }
-
-
-            if (
-                embed.url
-            ) {
-
-                transcript +=
-                    `Lien : ${embed.url}\n`;
-
-            }
-
-
-            if (
-                embed.fields?.length
-            ) {
-
-                for (
-                    const field
-                    of embed.fields
-                ) {
-
-                    transcript +=
-                        `${field.name} : ${field.value}\n`;
-
-                }
-
-            }
-
-        }
-
-
-        for (
-            const sticker
-            of message.stickers.values()
-        ) {
-
-            transcript +=
-                `[STICKER] ${sticker.name}\n`;
-
-        }
-
-
-        transcript +=
-            '\n------------------------------------------------------------\n\n';
-
-    }
-
-
-    transcript +=
-        '\n============================================================\n';
-
-    transcript +=
-        `FIN DU TRANSCRIPT - ${tousLesMessages.length} MESSAGE(S)\n`;
-
-    transcript +=
-        '============================================================\n';
-
-
-    return {
-
-        buffer:
-            Buffer.from(
-                transcript,
-                'utf8'
-            ),
-
-        messageCount:
-            tousLesMessages.length
-
-    };
-
-}
-
-// ======================================================
-// TWITCH API
-// ======================================================
-
-let twitchToken =
-    null;
-
-
-let twitchTokenExpireAt =
-    0;
-
-
-let streamCheckEnCours =
-    false;
-
-
-// ======================================================
-// TOKEN TWITCH
-// ======================================================
-
-async function obtenirTwitchToken() {
-
-    if (
-
-        twitchToken &&
-
-        Date.now() <
-            twitchTokenExpireAt -
-            60000
-
-    ) {
-
-        return twitchToken;
-
-    }
-
-
-    const clientId =
-        process.env.TWITCH_CLIENT_ID;
-
-
-    const clientSecret =
-        process.env.TWITCH_CLIENT_SECRET;
-
-
-    if (
-        !clientId ||
-        !clientSecret
-    ) {
-
-        throw new Error(
-            'TWITCH_CLIENT_ID ou TWITCH_CLIENT_SECRET manquant.'
         );
 
     }
 
+    catch (error) {
 
-    const url =
-        'https://id.twitch.tv/oauth2/token' +
-
-        `?client_id=${encodeURIComponent(clientId)}` +
-
-        `&client_secret=${encodeURIComponent(clientSecret)}` +
-
-        '&grant_type=client_credentials';
-
-
-    const response =
-        await fetch(
-            url,
-            {
-                method:
-                    'POST'
-            }
-        );
-
-
-    if (
-        !response.ok
-    ) {
-
-        const texte =
-            await response.text();
-
-
-        throw new Error(
-            `Twitch OAuth ${response.status}: ${texte}`
+        console.error(
+            `❌ Impossible de modifier le surnom sur ${guild.name} :`,
+            error.message
         );
 
     }
-
-
-    const data =
-        await response.json();
-
-
-    twitchToken =
-        data.access_token;
-
-
-    twitchTokenExpireAt =
-        Date.now() +
-        (
-            (
-                data.expires_in ||
-                3600
-            ) *
-            1000
-        );
-
-
-    return twitchToken;
 
 }
 
 
 // ======================================================
-// REQUÊTE TWITCH
+// APPLIQUER LA BANNIÈRE AUX EMBEDS
 // ======================================================
 
-async function twitchFetch(
-    endpoint
+function appliquerBanniereEmbed(
+    embed,
+    guild
 ) {
 
-    let token =
-        await obtenirTwitchToken();
-
-
-    let response =
-        await fetch(
-
-            `https://api.twitch.tv/helix${endpoint}`,
-
-            {
-
-                headers: {
-
-                    'Client-ID':
-                        process.env.TWITCH_CLIENT_ID,
-
-                    'Authorization':
-                        `Bearer ${token}`
-
-                }
-
-            }
-
+    const config =
+        chargerConfigServeur(
+            guild.id
         );
 
 
     if (
-        response.status ===
-        401
-    ) {
-
-        twitchToken =
-            null;
-
-
-        twitchTokenExpireAt =
-            0;
-
-
-        token =
-            await obtenirTwitchToken();
-
-
-        response =
-            await fetch(
-
-                `https://api.twitch.tv/helix${endpoint}`,
-
-                {
-
-                    headers: {
-
-                        'Client-ID':
-                            process.env.TWITCH_CLIENT_ID,
-
-                        'Authorization':
-                            `Bearer ${token}`
-
-                    }
-
-                }
-
-            );
-
-    }
-
-
-    if (
-        !response.ok
-    ) {
-
-        throw new Error(
-            `Twitch API ${response.status}: ${await response.text()}`
-        );
-
-    }
-
-
-    return response.json();
-
-}
-
-
-// ======================================================
-// TROUVER UNE CHAÎNE TWITCH
-// ======================================================
-
-async function trouverUtilisateurTwitch(
-    login
-) {
-
-    const propre =
-        login
-
-            .trim()
-
-            .toLowerCase()
-
-            .replace(
-                /^https?:\/\/(www\.)?twitch\.tv\//i,
-                ''
-            )
-
-            .replace(
-                /\/.*$/,
-                ''
-            );
-
-
-    if (
-        !propre
-    ) {
-
-        return null;
-
-    }
-
-
-    const data =
-        await twitchFetch(
-
-            `/users?login=${encodeURIComponent(propre)}`
-
-        );
-
-
-    return data.data?.[0] ||
-        null;
-
-}
-
-
-// ======================================================
-// EMBED LIVE TWITCH
-// ======================================================
-
-function creerEmbedStream(
-    config,
-    streamer,
-    stream
-) {
-
-    const e =
-        config.streams.embed;
-
-
-    const embed =
-        new EmbedBuilder()
-
-            .setColor(
-                couleurValide(
-                    e.color,
-                    '#9146FF'
-                )
-            )
-
-            .setTitle(
-                remplacerVariablesStream(
-                    e.title,
-                    streamer,
-                    stream
-                )
-            )
-
-            .setDescription(
-                remplacerVariablesStream(
-                    e.description,
-                    streamer,
-                    stream
-                )
-            )
-
-            .setURL(
-                `https://www.twitch.tv/${streamer.login}`
-            )
-
-            .setTimestamp();
-
-
-    if (
-        e.footer
-    ) {
-
-        embed.setFooter({
-
-            text:
-                e.footer
-
-        });
-
-    }
-
-
-    if (
-        stream.thumbnail_url
+        config.appearance.bannerUrl
     ) {
 
         embed.setImage(
-
-            stream.thumbnail_url
-
-                .replace(
-                    '{width}',
-                    '1280'
-                )
-
-                .replace(
-                    '{height}',
-                    '720'
-                )
-
-            +
-
-            `?t=${Date.now()}`
-
+            config.appearance.bannerUrl
         );
 
     }
@@ -1603,490 +1098,263 @@ function creerEmbedStream(
 
 
 // ======================================================
-// SUPPRIMER ANNONCE LIVE
+// ENVOYER UN MESSAGE AVEC L'APPARENCE DU SERVEUR
+//
+// IMPORTANT :
+// - utilisé pour annonces / streams / bienvenue
+// - PAS utilisé pour les boutons des tickets
+//
+// Chaque salon possède son propre webhook.
+// On ne stocke donc plus un webhook unique dans config.json.
 // ======================================================
 
-async function supprimerAnnonceStream(
-    guild,
-    config,
-    streamer
+async function envoyerMessagePersonnalise(
+    channel,
+    options = {}
 ) {
 
     if (
-        !streamer.messageId ||
-        !config.streams.channelId
-    ) {
-
-        return;
-
-    }
-
-
-    const salon =
-
-        guild.channels.cache.get(
-            config.streams.channelId
-        )
-
-        ||
-
-        await guild.channels.fetch(
-            config.streams.channelId
-        )
-            .catch(
-                () => null
-            );
-
-
-    if (
-        !salon ||
-        !salon.isTextBased()
-    ) {
-
-        return;
-
-    }
-
-
-    const message =
-        await salon.messages.fetch(
-            streamer.messageId
-        )
-            .catch(
-                () => null
-            );
-
-
-    if (
-        message
-    ) {
-
-        await message.delete()
-            .catch(
-                () => {}
-            );
-
-    }
-
-}
-
-
-// ======================================================
-// PUBLIER ANNONCE LIVE
-// ======================================================
-
-async function publierAnnonceStream(
-    guild,
-    config,
-    streamer,
-    stream
-) {
-
-    const salon =
-
-        guild.channels.cache.get(
-            config.streams.channelId
-        )
-
-        ||
-
-        await guild.channels.fetch(
-            config.streams.channelId
-        )
-            .catch(
-                () => null
-            );
-
-
-    if (
-        !salon ||
-        !salon.isTextBased()
+        !channel ||
+        !channel.guild ||
+        !channel.isTextBased()
     ) {
 
         throw new Error(
-            `Salon Streams introuvable sur ${guild.name}.`
+            'Salon invalide pour le webhook.'
         );
 
     }
-
-
-    const embed =
-        creerEmbedStream(
-            config,
-            streamer,
-            stream
-        );
-
-
-    const bouton =
-        new ButtonBuilder()
-
-            .setLabel(
-                config.streams.embed.buttonLabel ||
-                'Regarder le live'
-            )
-
-            .setStyle(
-                ButtonStyle.Link
-            )
-
-            .setURL(
-                `https://www.twitch.tv/${streamer.login}`
-            );
-
-
-    const payload = {
-
-        embeds: [
-            embed
-        ],
-
-        components: [
-
-            new ActionRowBuilder()
-                .addComponents(
-                    bouton
-                )
-
-        ]
-
-    };
-
-
-    if (
-        config.streams.embed
-            .mentionEveryone
-    ) {
-
-        payload.content =
-            '@everyone';
-
-
-        payload.allowedMentions = {
-
-            parse: [
-                'everyone'
-            ]
-
-        };
-
-    }
-
-
-    return salon.send(
-        payload
-    );
-
-}
-
-
-// ======================================================
-// VÉRIFIER LES STREAMS D'UN SERVEUR
-// ======================================================
-
-async function verifierStreamsServeur(
-    guild
-) {
-
-    const config =
-        chargerConfigServeur(
-            guild.id
-        );
-
-
-    if (
-
-        !config.streams.channelId ||
-
-        !Object.keys(
-            config.streams.streamers
-        ).length
-
-    ) {
-
-        return;
-
-    }
-
-
-    const streamers =
-        Object.values(
-            config.streams.streamers
-        )
-            .filter(
-                streamer =>
-                    streamer?.login
-            );
-
-
-    if (
-        !streamers.length
-    ) {
-
-        return;
-
-    }
-
-
-    const onlineParLogin =
-        new Map();
-
-
-    for (
-        let i = 0;
-        i < streamers.length;
-        i += 100
-    ) {
-
-        const lot =
-            streamers.slice(
-                i,
-                i + 100
-            );
-
-
-        const params =
-            lot
-                .map(
-                    streamer =>
-                        `user_login=${encodeURIComponent(streamer.login)}`
-                )
-                .join(
-                    '&'
-                );
-
-
-        const data =
-            await twitchFetch(
-                `/streams?${params}`
-            );
-
-
-        for (
-            const stream
-            of data.data ||
-            []
-        ) {
-
-            onlineParLogin.set(
-
-                stream.user_login
-                    .toLowerCase(),
-
-                stream
-
-            );
-
-        }
-
-    }
-
-
-    let modifie =
-        false;
-
-
-    for (
-        const streamer
-        of streamers
-    ) {
-
-        const login =
-            streamer.login
-                .toLowerCase();
-
-
-        const stream =
-            onlineParLogin.get(
-                login
-            );
-
-
-        // ==============================================
-        // ONLINE
-        // ==============================================
-
-        if (
-            stream
-        ) {
-
-            if (
-                !streamer.isLive ||
-                !streamer.messageId
-            ) {
-
-                if (
-                    streamer.messageId
-                ) {
-
-                    await supprimerAnnonceStream(
-                        guild,
-                        config,
-                        streamer
-                    );
-
-                }
-
-
-                const message =
-                    await publierAnnonceStream(
-                        guild,
-                        config,
-                        streamer,
-                        stream
-                    );
-
-
-                streamer.messageId =
-                    message.id;
-
-
-                streamer.isLive =
-                    true;
-
-
-                streamer.lastStreamId =
-                    stream.id ||
-                    '';
-
-
-                modifie =
-                    true;
-
-
-                console.log(
-                    `🔴 Twitch ONLINE [${guild.name}] : ${streamer.login}`
-                );
-
-            }
-
-        }
-
-
-        // ==============================================
-        // OFFLINE
-        // ==============================================
-
-        else {
-
-            if (
-                streamer.isLive ||
-                streamer.messageId
-            ) {
-
-                await supprimerAnnonceStream(
-                    guild,
-                    config,
-                    streamer
-                );
-
-
-                streamer.messageId =
-                    '';
-
-
-                streamer.isLive =
-                    false;
-
-
-                streamer.lastStreamId =
-                    '';
-
-
-                modifie =
-                    true;
-
-
-                console.log(
-                    `⚫ Twitch OFFLINE [${guild.name}] : ${streamer.login}`
-                );
-
-            }
-
-        }
-
-    }
-
-
-    if (
-        modifie
-    ) {
-
-        sauvegarderConfigServeur(
-            guild.id,
-            config
-        );
-
-    }
-
-}
-
-
-// ======================================================
-// VÉRIFICATION TWITCH MULTI-SERVEURS
-// ======================================================
-
-async function verifierStreams() {
-
-    if (
-        streamCheckEnCours ||
-        !client.isReady()
-    ) {
-
-        return;
-
-    }
-
-
-    streamCheckEnCours =
-        true;
 
 
     try {
 
-        for (
-            const guild
-            of client.guilds.cache.values()
+        // --------------------------------------------------
+        // Chercher un webhook appartenant À CE SALON
+        // --------------------------------------------------
+
+        const webhooks =
+            await channel.fetchWebhooks();
+
+
+        let webhook =
+            webhooks.find(
+
+                hook =>
+                    hook.owner?.id ===
+                        client.user.id &&
+
+                    hook.name ===
+                        'BOTTEST-WEBHOOK'
+
+            );
+
+
+        // --------------------------------------------------
+        // Aucun webhook dans ce salon : création
+        // --------------------------------------------------
+
+        if (
+            !webhook
         ) {
 
-            try {
+            webhook =
+                await channel.createWebhook({
 
-                await verifierStreamsServeur(
-                    guild
-                );
+                    name:
+                        'BOTTEST-WEBHOOK',
 
-            }
+                    reason:
+                        'Apparence personnalisée du bot'
 
-            catch (error) {
-
-                console.error(
-                    `❌ Twitch [${guild.name}] :`,
-                    error.message
-                );
-
-            }
+                });
 
         }
+
+
+        // --------------------------------------------------
+        // Envoyer
+        // --------------------------------------------------
+
+        return await webhook.send({
+
+            ...options,
+
+            username:
+                obtenirNomPublicServeur(
+                    channel.guild
+                ),
+
+            avatarURL:
+                obtenirAvatarPublicServeur(
+                    channel.guild
+                )
+
+        });
 
     }
 
     catch (error) {
 
         console.error(
-            '❌ Vérification Twitch globale :',
-            error
+            `⚠️ Webhook impossible dans #${channel.name}, utilisation du bot normal :`,
+            error.message
+        );
+
+
+        // --------------------------------------------------
+        // FALLBACK
+        // --------------------------------------------------
+
+        return await channel.send(
+            options
         );
 
     }
 
-    finally {
+}
 
-        streamCheckEnCours =
-            false;
+
+// ======================================================
+// EMBED CONFIG APPARENCE
+// ======================================================
+
+function creerEmbedConfigApparence(
+    guildId
+) {
+
+    const config =
+        chargerConfigServeur(
+            guildId
+        );
+
+
+    const guild =
+        client.guilds.cache.get(
+            guildId
+        );
+
+
+    const nom =
+        config.appearance.nickname ||
+        client.user.username;
+
+
+    const avatar =
+        config.appearance.avatarUrl
+            ? '✅ Personnalisé'
+            : '❌ Avatar global';
+
+
+    const banniere =
+        config.appearance.bannerUrl
+            ? '✅ Configurée'
+            : '❌ Aucune';
+
+
+    const embed =
+        new EmbedBuilder()
+
+            .setColor(
+                '#F47B20'
+            )
+
+            .setTitle(
+                '🤖 APPARENCE DU BOT'
+            )
+
+            .setDescription(
+                'Personnalise l’identité visuelle du bot pour **ce serveur uniquement**.'
+            )
+
+            .addFields(
+
+                {
+                    name:
+                        '✏️ Nom sur le serveur',
+
+                    value:
+                        `\`${nom}\``,
+
+                    inline:
+                        false
+                },
+
+                {
+                    name:
+                        '🖼️ Avatar public',
+
+                    value:
+                        avatar,
+
+                    inline:
+                        true
+                },
+
+                {
+                    name:
+                        '🌄 Bannière',
+
+                    value:
+                        banniere,
+
+                    inline:
+                        true
+                }
+
+            )
+
+            .setFooter({
+
+                text:
+                    guild
+                        ? `${guild.name} • Configuration`
+                        : 'Configuration du serveur'
+
+            });
+
+
+    if (
+        config.appearance.avatarUrl
+    ) {
+
+        embed.setThumbnail(
+            config.appearance.avatarUrl
+        );
 
     }
 
+    else if (
+        client.user
+    ) {
+
+        embed.setThumbnail(
+            client.user.displayAvatarURL({
+                extension:
+                    'png',
+
+                size:
+                    256
+            })
+        );
+
+    }
+
+
+    if (
+        config.appearance.bannerUrl
+    ) {
+
+        embed.setImage(
+            config.appearance.bannerUrl
+        );
+
+    }
+
+
+    return embed;
+
 }
+
 
 // ======================================================
 // EMBED CONFIG TICKETS
@@ -2102,145 +1370,85 @@ function creerEmbedConfigTickets(
         );
 
 
-    const embed =
-        new EmbedBuilder()
-
-            .setColor(
-                '#F47B20'
-            )
-
-            .setTitle(
-                '🎫 CONFIGURATION // TICKETS'
-            )
-
-            .setDescription(
-                'Gère entièrement le système de tickets de ce serveur.'
-            )
-
-            .addFields(
-
-                {
-                    name:
-                        '🛡️ Rôle Staff',
-
-                    value:
-                        config.tickets.staffRoleId
-                            ? `<@&${config.tickets.staffRoleId}>`
-                            : '❌ Non configuré'
-                },
-
-                {
-                    name:
-                        '📜 Salon Logs',
-
-                    value:
-                        config.tickets.logsChannelId
-                            ? `<#${config.tickets.logsChannelId}>`
-                            : '❌ Non configuré'
-                }
-
-            );
+    const nombreTypes =
+        Object.keys(
+            config.tickets.types ||
+            {}
+        ).length;
 
 
-    const staffs =
-        Object.entries(
-            config.tickets.staffMembers
+    const nombreStaff =
+        Object.keys(
+            config.tickets.staffMembers ||
+            {}
+        ).length;
+
+
+    return new EmbedBuilder()
+
+        .setColor(
+            '#F47B20'
+        )
+
+        .setTitle(
+            '🎫 CONFIGURATION DES TICKETS'
+        )
+
+        .setDescription(
+            'Configure ici le système de tickets de ce serveur.'
+        )
+
+        .addFields(
+
+            {
+                name:
+                    '🛡️ Rôle Staff',
+
+                value:
+                    config.tickets.staffRoleId
+                        ? `<@&${config.tickets.staffRoleId}>`
+                        : '❌ Non configuré',
+
+                inline:
+                    true
+            },
+
+            {
+                name:
+                    '📜 Salon Logs',
+
+                value:
+                    config.tickets.logsChannelId
+                        ? `<#${config.tickets.logsChannelId}>`
+                        : '❌ Non configuré',
+
+                inline:
+                    true
+            },
+
+            {
+                name:
+                    '📂 Types de tickets',
+
+                value:
+                    `${nombreTypes}`,
+
+                inline:
+                    true
+            },
+
+            {
+                name:
+                    '👥 Membres Staff',
+
+                value:
+                    `${nombreStaff}`,
+
+                inline:
+                    true
+            }
+
         );
-
-
-    embed.addFields({
-
-        name:
-            '👥 Staff Tickets',
-
-        value:
-            staffs.length
-
-                ? staffs
-                    .map(
-                        ([id, infos]) =>
-                            `${emojiStaffValide(infos.emoji)} <@${id}>`
-                    )
-                    .join(
-                        '\n'
-                    )
-                    .slice(
-                        0,
-                        1024
-                    )
-
-                : 'Aucun staff avec emoji personnel.'
-
-    });
-
-
-    const types =
-        Object.entries(
-            config.tickets.types
-        );
-
-
-    embed.addFields({
-
-        name:
-            '📂 Types de tickets',
-
-        value:
-            types.length
-
-                ? types
-                    .map(
-                        ([, type]) =>
-                            `${emojiValide(type.emoji)} **${type.name}**\n` +
-                            `└ ${
-                                type.categoryId
-                                    ? `<#${type.categoryId}>`
-                                    : '❌ Aucune catégorie'
-                            }`
-                    )
-                    .join(
-                        '\n\n'
-                    )
-                    .slice(
-                        0,
-                        1024
-                    )
-
-                : 'Aucun type créé.'
-
-    });
-
-
-    embed.addFields(
-
-        {
-            name:
-                '🎨 Panel public',
-
-            value:
-                `Titre : **${config.tickets.panel.title}**\n` +
-                `Bouton : **${config.tickets.panel.buttonLabel}**\n` +
-                `Couleur : \`${config.tickets.panel.color}\``
-        },
-
-        {
-            name:
-                '📝 Embed interne',
-
-            value:
-                `Titre : **${config.tickets.ticketEmbed.title}**\n` +
-                `Couleur : \`${config.tickets.ticketEmbed.color}\`\n` +
-                `Avatar : ${
-                    config.tickets.ticketEmbed.showAvatar
-                        ? '✅'
-                        : '❌'
-                }`
-        }
-
-    );
-
-
-    return embed;
 
 }
 
@@ -2259,116 +1467,79 @@ function creerEmbedConfigBienvenue(
         );
 
 
-    return new EmbedBuilder()
+    const embed =
+        new EmbedBuilder()
 
-        .setColor(
-            '#F47B20'
-        )
+            .setColor(
+                '#F47B20'
+            )
 
-        .setTitle(
-            '👋 CONFIGURATION // BIENVENUE & DÉPART'
-        )
+            .setTitle(
+                '👋 BIENVENUE / DÉPART'
+            )
 
-        .setDescription(
-            'Configure les messages d’arrivée et de départ de ce serveur.'
-        )
+            .setDescription(
+                'Configure les messages automatiques d’arrivée et de départ.'
+            )
 
-        .addFields(
+            .addFields(
 
-            {
-                name:
-                    '📥 Arrivées',
+                {
+                    name:
+                        '🎉 Arrivées',
 
-                value:
-                    config.welcome.welcomeEnabled
-                        ? '✅ Activées'
-                        : '❌ Désactivées',
+                    value:
+                        config.welcome.welcomeEnabled
+                            ? '✅ Activées'
+                            : '❌ Désactivées',
 
-                inline:
-                    true
-            },
+                    inline:
+                        true
+                },
 
-            {
-                name:
-                    '📤 Départs',
+                {
+                    name:
+                        '👋 Départs',
 
-                value:
-                    config.welcome.goodbyeEnabled
-                        ? '✅ Activés'
-                        : '❌ Désactivés',
+                    value:
+                        config.welcome.goodbyeEnabled
+                            ? '✅ Activés'
+                            : '❌ Désactivés',
 
-                inline:
-                    true
-            },
+                    inline:
+                        true
+                },
 
-            {
-                name:
-                    '📥 Salon arrivée',
+                {
+                    name:
+                        '📍 Salon arrivée',
 
-                value:
-                    config.welcome.welcomeChannelId
-                        ? `<#${config.welcome.welcomeChannelId}>`
-                        : '❌ Non configuré'
-            },
+                    value:
+                        config.welcome.welcomeChannelId
+                            ? `<#${config.welcome.welcomeChannelId}>`
+                            : '❌ Non configuré',
 
-            {
-                name:
-                    '📤 Salon départ',
+                    inline:
+                        false
+                },
 
-                value:
-                    config.welcome.goodbyeChannelId
-                        ? `<#${config.welcome.goodbyeChannelId}>`
-                        : '❌ Non configuré'
-            },
+                {
+                    name:
+                        '📍 Salon départ',
 
-            {
-                name:
-                    '🎨 Couleurs',
+                    value:
+                        config.welcome.goodbyeChannelId
+                            ? `<#${config.welcome.goodbyeChannelId}>`
+                            : '❌ Non configuré',
 
-                value:
-                    `Arrivée : \`${config.welcome.welcomeColor}\`\n` +
-                    `Départ : \`${config.welcome.goodbyeColor}\``
-            },
+                    inline:
+                        false
+                }
 
-            {
-                name:
-                    '🖼️ Avatar membre',
+            );
 
-                value:
-                    `Arrivée : ${
-                        config.welcome.welcomeShowAvatar
-                            ? '✅'
-                            : '❌'
-                    }\n` +
 
-                    `Départ : ${
-                        config.welcome.goodbyeShowAvatar
-                            ? '✅'
-                            : '❌'
-                    }`
-            },
-
-            {
-                name:
-                    '🖼️ Image arrivée',
-
-                value:
-                    config.welcome.welcomeImageUrl
-                        ? '✅ Configurée'
-                        : '❌ Aucune'
-            },
-
-            {
-                name:
-                    '🖼️ Image départ',
-
-                value:
-                    config.welcome.goodbyeImageUrl
-                        ? '✅ Configurée'
-                        : '❌ Aucune'
-            }
-
-        );
+    return embed;
 
 }
 
@@ -2397,23 +1568,26 @@ function creerEmbedConfigAnnonces(
         )
 
         .setTitle(
-            '📢 CONFIGURATION // ANNONCES'
+            '📢 CONFIGURATION DES ANNONCES'
         )
 
         .setDescription(
-            'Crée et publie les annonces de ce serveur directement depuis Discord.'
+            'Configure le salon et l’apparence des annonces.'
         )
 
         .addFields(
 
             {
                 name:
-                    '📍 Salon par défaut',
+                    '📍 Salon',
 
                 value:
                     config.annonces.channelId
                         ? `<#${config.annonces.channelId}>`
-                        : '❌ Non configuré'
+                        : '❌ Non configuré',
+
+                inline:
+                    false
             },
 
             {
@@ -2460,7 +1634,8 @@ function creerEmbedConfigStreams(
 
     const streamers =
         Object.values(
-            config.streams.streamers
+            config.streams.streamers ||
+            {}
         );
 
 
@@ -2470,41 +1645,27 @@ function creerEmbedConfigStreams(
             ? streamers
                 .map(
                     streamer =>
-                        `${
-                            streamer.isLive
-                                ? '🔴'
-                                : '⚫'
-                        } **${
-                            streamer.displayName ||
-                            streamer.login
-                        }** (\`${streamer.login}\`)`
+                        `• **${streamer.displayName || streamer.login}**`
                 )
                 .join(
                     '\n'
                 )
-                .slice(
-                    0,
-                    1024
-                )
 
-            : 'Aucun streamer surveillé.';
+            : 'Aucun streamer configuré.';
 
 
     return new EmbedBuilder()
 
         .setColor(
-            couleurValide(
-                config.streams.embed.color,
-                '#9146FF'
-            )
+            '#9146FF'
         )
 
         .setTitle(
-            '🔴 CONFIGURATION // STREAMS TWITCH'
+            '🔴 CONFIGURATION TWITCH'
         )
 
         .setDescription(
-            'Les lives Twitch sont gérés indépendamment pour ce serveur.'
+            'Configure les notifications Twitch de ce serveur.'
         )
 
         .addFields(
@@ -2516,28 +1677,20 @@ function creerEmbedConfigStreams(
                 value:
                     config.streams.channelId
                         ? `<#${config.streams.channelId}>`
-                        : '❌ Non configuré'
-            },
-
-            {
-                name:
-                    '⏱️ Vérification',
-
-                value:
-                    `${config.streams.checkInterval || 60} secondes`,
+                        : '❌ Non configuré',
 
                 inline:
-                    true
+                    false
             },
 
             {
                 name:
-                    '📣 @everyone',
+                    '📣 Mention @everyone',
 
                 value:
                     config.streams.embed.mentionEveryone
-                        ? '✅ Activé'
-                        : '❌ Désactivé',
+                        ? '✅ Activée'
+                        : '❌ Désactivée',
 
                 inline:
                     true
@@ -2545,20 +1698,13 @@ function creerEmbedConfigStreams(
 
             {
                 name:
-                    '👤 Streamers surveillés',
+                    '👤 Streamers',
 
                 value:
-                    liste
-            },
+                    liste,
 
-            {
-                name:
-                    '🎨 Embed',
-
-                value:
-                    `Couleur : \`${config.streams.embed.color}\`\n` +
-                    `Bouton : **${config.streams.embed.buttonLabel}**\n` +
-                    `Footer : **${config.streams.embed.footer || 'Aucun'}**`
+                inline:
+                    false
             }
 
         );
@@ -2567,22 +1713,675 @@ function creerEmbedConfigStreams(
 
 
 // ======================================================
-// MÉMOIRE ANNONCES
+// MAPS TEMPORAIRES
 // ======================================================
 
 const annoncesEnAttente =
     new Map();
 
 
-// ======================================================
-// ATTENTE IMAGE BIENVENUE / DÉPART
-// ======================================================
-
 const attenteImageBienvenue =
     new Map();
 
+
+const attenteImageApparence =
+    new Map();
+
+
 // ======================================================
-// COMMANDES
+// TWITCH
+// ======================================================
+
+let twitchToken =
+    null;
+
+
+let twitchTokenExpiration =
+    0;
+
+
+// ======================================================
+// OBTENIR TOKEN TWITCH
+// ======================================================
+
+async function getTwitchAppToken() {
+
+    if (
+        twitchToken &&
+        Date.now() <
+            twitchTokenExpiration
+    ) {
+
+        return twitchToken;
+
+    }
+
+
+    if (
+        !process.env.TWITCH_CLIENT_ID ||
+        !process.env.TWITCH_CLIENT_SECRET
+    ) {
+
+        throw new Error(
+            'TWITCH_CLIENT_ID ou TWITCH_CLIENT_SECRET manquant.'
+        );
+
+    }
+
+
+    const params =
+        new URLSearchParams({
+
+            client_id:
+                process.env.TWITCH_CLIENT_ID,
+
+            client_secret:
+                process.env.TWITCH_CLIENT_SECRET,
+
+            grant_type:
+                'client_credentials'
+
+        });
+
+
+    const response =
+        await fetch(
+
+            `https://id.twitch.tv/oauth2/token?${params.toString()}`,
+
+            {
+                method:
+                    'POST'
+            }
+
+        );
+
+
+    if (
+        !response.ok
+    ) {
+
+        const texte =
+            await response.text();
+
+
+        throw new Error(
+            `Twitch OAuth ${response.status} : ${texte}`
+        );
+
+    }
+
+
+    const data =
+        await response.json();
+
+
+    twitchToken =
+        data.access_token;
+
+
+    twitchTokenExpiration =
+        Date.now() +
+        (
+            Math.max(
+                60,
+                data.expires_in - 60
+            ) *
+            1000
+        );
+
+
+    return twitchToken;
+
+}
+
+
+// ======================================================
+// TWITCH FETCH
+// ======================================================
+
+async function twitchFetch(
+    endpoint
+) {
+
+    const token =
+        await getTwitchAppToken();
+
+
+    const response =
+        await fetch(
+
+            `https://api.twitch.tv/helix${endpoint}`,
+
+            {
+                headers: {
+
+                    'Client-ID':
+                        process.env.TWITCH_CLIENT_ID,
+
+                    Authorization:
+                        `Bearer ${token}`
+
+                }
+            }
+
+        );
+
+
+    if (
+        !response.ok
+    ) {
+
+        const texte =
+            await response.text();
+
+
+        throw new Error(
+            `Twitch API ${response.status} : ${texte}`
+        );
+
+    }
+
+
+    return await response.json();
+
+}
+
+
+// ======================================================
+// TROUVER UTILISATEUR TWITCH
+// ======================================================
+
+async function trouverUtilisateurTwitch(
+    login
+) {
+
+    const propre =
+        String(
+            login ||
+            ''
+        )
+
+            .trim()
+
+            .toLowerCase()
+
+            .replace(
+                /^https?:\/\/(www\.)?twitch\.tv\//i,
+                ''
+            )
+
+            .replace(
+                /\/.*$/,
+                ''
+            );
+
+
+    if (
+        !propre
+    ) {
+
+        return null;
+
+    }
+
+
+    const data =
+        await twitchFetch(
+            `/users?login=${encodeURIComponent(propre)}`
+        );
+
+
+    return (
+        data.data?.[0] ||
+        null
+    );
+
+}
+
+
+// ======================================================
+// PUBLIER ANNONCE STREAM
+// ======================================================
+
+async function publierAnnonceStream(
+    guild,
+    streamerConfig,
+    stream
+) {
+
+    const config =
+        chargerConfigServeur(
+            guild.id
+        );
+
+
+    const salon =
+
+        guild.channels.cache.get(
+            config.streams.channelId
+        )
+
+        ||
+
+        await guild.channels.fetch(
+            config.streams.channelId
+        )
+            .catch(
+                () => null
+            );
+
+
+    if (
+        !salon ||
+        !salon.isTextBased()
+    ) {
+
+        return null;
+
+    }
+
+
+    const embed =
+        new EmbedBuilder()
+
+            .setColor(
+                couleurValide(
+                    config.streams.embed.color,
+                    '#9146FF'
+                )
+            )
+
+            .setTitle(
+
+                remplacerVariablesStream(
+
+                    config.streams.embed.title,
+
+                    streamerConfig,
+
+                    stream
+
+                )
+
+            )
+
+            .setDescription(
+
+                remplacerVariablesStream(
+
+                    config.streams.embed.description,
+
+                    streamerConfig,
+
+                    stream
+
+                )
+
+            )
+
+            .setURL(
+                `https://www.twitch.tv/${streamerConfig.login}`
+            )
+
+            .setTimestamp();
+
+
+    if (
+        config.streams.embed.footer
+    ) {
+
+        embed.setFooter({
+
+            text:
+                config.streams.embed.footer
+
+        });
+
+    }
+
+
+    if (
+        stream.thumbnail_url
+    ) {
+
+        embed.setImage(
+
+            stream.thumbnail_url
+
+                .replace(
+                    '{width}',
+                    '1280'
+                )
+
+                .replace(
+                    '{height}',
+                    '720'
+                )
+
+        );
+
+    }
+
+    else {
+
+        appliquerBanniereEmbed(
+            embed,
+            guild
+        );
+
+    }
+
+
+    const bouton =
+        new ButtonBuilder()
+
+            .setLabel(
+                config.streams.embed.buttonLabel ||
+                'Regarder le live'
+            )
+
+            .setStyle(
+                ButtonStyle.Link
+            )
+
+            .setURL(
+                `https://www.twitch.tv/${streamerConfig.login}`
+            );
+
+
+    const row =
+        new ActionRowBuilder()
+
+            .addComponents(
+                bouton
+            );
+
+
+    const content =
+        config.streams.embed.mentionEveryone
+            ? '@everyone'
+            : undefined;
+
+
+    const message =
+        await envoyerMessagePersonnalise(
+
+            salon,
+
+            {
+
+                content:
+                    content,
+
+                embeds: [
+                    embed
+                ],
+
+                components: [
+                    row
+                ],
+
+                allowedMentions: {
+
+                    parse:
+                        config.streams.embed.mentionEveryone
+                            ? ['everyone']
+                            : []
+
+                }
+
+            }
+
+        );
+
+
+    return message;
+
+}
+
+
+// ======================================================
+// SUPPRIMER ANNONCE STREAM
+// ======================================================
+
+async function supprimerAnnonceStream(
+    guild,
+    streamerConfig
+) {
+
+    if (
+        !streamerConfig.messageId ||
+        !streamerConfig.channelId
+    ) {
+
+        return;
+
+    }
+
+
+    try {
+
+        const salon =
+
+            guild.channels.cache.get(
+                streamerConfig.channelId
+            )
+
+            ||
+
+            await guild.channels.fetch(
+                streamerConfig.channelId
+            )
+                .catch(
+                    () => null
+                );
+
+
+        if (
+            !salon ||
+            !salon.isTextBased()
+        ) {
+
+            return;
+
+        }
+
+
+        const message =
+            await salon.messages
+                .fetch(
+                    streamerConfig.messageId
+                )
+                .catch(
+                    () => null
+                );
+
+
+        if (
+            message
+        ) {
+
+            await message
+                .delete()
+                .catch(
+                    () => {}
+                );
+
+        }
+
+    }
+
+    catch (_) {}
+
+}
+
+
+// ======================================================
+// VÉRIFIER LES STREAMS D'UN SERVEUR
+// ======================================================
+
+async function verifierStreamsServeur(
+    guild
+) {
+
+    const config =
+        chargerConfigServeur(
+            guild.id
+        );
+
+
+    const streamers =
+        Object.values(
+            config.streams.streamers ||
+            {}
+        );
+
+
+    if (
+        !streamers.length
+    ) {
+
+        return;
+
+    }
+
+
+    let modifie =
+        false;
+
+
+    for (
+        const streamer
+        of streamers
+    ) {
+
+        try {
+
+            const data =
+                await twitchFetch(
+
+                    `/streams?user_login=${encodeURIComponent(streamer.login)}`
+
+                );
+
+
+            const stream =
+                data.data?.[0] ||
+                null;
+
+
+            if (
+                stream &&
+                !streamer.isLive
+            ) {
+
+                const message =
+                    await publierAnnonceStream(
+                        guild,
+                        streamer,
+                        stream
+                    );
+
+
+                streamer.isLive =
+                    true;
+
+
+                if (
+                    message
+                ) {
+
+                    streamer.messageId =
+                        message.id;
+
+                    streamer.channelId =
+                        message.channelId;
+
+                }
+
+
+                modifie =
+                    true;
+
+            }
+
+
+            else if (
+                !stream &&
+                streamer.isLive
+            ) {
+
+                await supprimerAnnonceStream(
+                    guild,
+                    streamer
+                );
+
+
+                streamer.isLive =
+                    false;
+
+                streamer.messageId =
+                    '';
+
+                streamer.channelId =
+                    '';
+
+
+                modifie =
+                    true;
+
+            }
+
+        }
+
+        catch (error) {
+
+            console.error(
+                `❌ Twitch ${streamer.login} :`,
+                error.message
+            );
+
+        }
+
+    }
+
+
+    if (
+        modifie
+    ) {
+
+        sauvegarderConfigServeur(
+            guild.id,
+            config
+        );
+
+    }
+
+}
+
+
+// ======================================================
+// VÉRIFIER TOUS LES STREAMS
+// ======================================================
+
+async function verifierStreams() {
+
+    for (
+        const guild
+        of client.guilds.cache.values()
+    ) {
+
+        await verifierStreamsServeur(
+            guild
+        );
+
+    }
+
+}
+
+// ======================================================
+// COMMANDES SLASH
 // ======================================================
 
 const commands = [
@@ -2624,7 +2423,7 @@ const commands = [
 
 
 // ======================================================
-// REST
+// REST DISCORD
 // ======================================================
 
 const rest =
@@ -2634,13 +2433,14 @@ const rest =
             '10'
 
     })
+
         .setToken(
             process.env.DISCORD_TOKEN
         );
 
 
 // ======================================================
-// ENREGISTRER COMMANDES GLOBALES
+// ENREGISTRER LES COMMANDES GLOBALES
 // ======================================================
 
 async function enregistrerCommandes() {
@@ -2677,7 +2477,7 @@ async function enregistrerCommandes() {
     catch (error) {
 
         console.error(
-            '❌ Erreur commandes :',
+            '❌ Erreur installation commandes :',
             error
         );
 
@@ -2691,7 +2491,9 @@ async function enregistrerCommandes() {
 // ======================================================
 
 client.once(
+
     Events.ClientReady,
+
     async () => {
 
         console.log(
@@ -2715,44 +2517,89 @@ client.once(
         );
 
 
-        // ==============================================
-        // MIGRATION ANCIENNE CONFIG
-        // ==============================================
-
-        migrerAncienneConfigSiNecessaire();
-
-
-        // ==============================================
-        // CRÉER CONFIG POUR TOUS LES SERVEURS
-        // ==============================================
+        // ----------------------------------------------
+        // Charger chaque serveur
+        // ----------------------------------------------
 
         for (
             const guild
             of client.guilds.cache.values()
         ) {
 
-            chargerConfigServeur(
-                guild.id
-            );
+            try {
+
+                chargerConfigServeur(
+                    guild.id
+                );
 
 
-            console.log(
-                `⚙️ Config chargée : ${guild.name} (${guild.id})`
+                await appliquerSurnomServeur(
+                    guild
+                );
+
+
+                console.log(
+                    `⚙️ Config chargée : ${guild.name} (${guild.id})`
+                );
+
+            }
+
+            catch (error) {
+
+                console.error(
+                    `❌ Erreur config ${guild.name} :`,
+                    error.message
+                );
+
+            }
+
+        }
+
+
+        // ----------------------------------------------
+        // Vérification Twitch au démarrage
+        // ----------------------------------------------
+
+        try {
+
+            await verifierStreams();
+
+        }
+
+        catch (error) {
+
+            console.error(
+                '❌ Vérification Twitch initiale :',
+                error.message
             );
 
         }
 
 
-        // ==============================================
-        // TWITCH
-        // ==============================================
-
-        await verifierStreams();
-
+        // ----------------------------------------------
+        // Vérification Twitch toutes les 60 secondes
+        // ----------------------------------------------
 
         setInterval(
 
-            verifierStreams,
+            async () => {
+
+                try {
+
+                    await verifierStreams();
+
+                }
+
+                catch (error) {
+
+                    console.error(
+                        '❌ Vérification Twitch :',
+                        error.message
+                    );
+
+                }
+
+            },
 
             60000
 
@@ -2760,36 +2607,58 @@ client.once(
 
 
         console.log(
-            '🔴 Twitch : vérification multi-serveurs toutes les 60s'
+            '🔴 Twitch : vérification toutes les 60 secondes'
         );
 
     }
+
 );
 
 
 // ======================================================
-// BOT AJOUTÉ SUR UN NOUVEAU SERVEUR
+// BOT AJOUTÉ SUR UN SERVEUR
 // ======================================================
 
 client.on(
+
     Events.GuildCreate,
+
     async guild => {
 
-        console.log(
-            `➕ Nouveau serveur : ${guild.name} (${guild.id})`
-        );
+        try {
+
+            console.log(
+                `➕ Nouveau serveur : ${guild.name} (${guild.id})`
+            );
 
 
-        chargerConfigServeur(
-            guild.id
-        );
+            chargerConfigServeur(
+                guild.id
+            );
 
 
-        console.log(
-            `✅ Configuration créée pour ${guild.name}`
-        );
+            await appliquerSurnomServeur(
+                guild
+            );
+
+
+            console.log(
+                `✅ Configuration créée pour ${guild.name}`
+            );
+
+        }
+
+        catch (error) {
+
+            console.error(
+                `❌ Erreur GuildCreate ${guild.name} :`,
+                error.message
+            );
+
+        }
 
     }
+
 );
 
 
@@ -2798,22 +2667,17 @@ client.on(
 // ======================================================
 
 client.on(
+
     Events.GuildDelete,
-    async guild => {
+
+    guild => {
 
         console.log(
             `➖ Bot retiré du serveur : ${guild.name} (${guild.id})`
         );
 
-
-        /*
-            On NE supprime PAS automatiquement la config.
-
-            Comme ça, si le bot est réinvité plus tard,
-            les réglages du serveur peuvent être conservés.
-        */
-
     }
+
 );
 
 
@@ -2822,13 +2686,10 @@ client.on(
 // ======================================================
 
 client.on(
+
     Events.GuildMemberAdd,
+
     async member => {
-
-        console.log(
-            `📥 Nouveau membre [${member.guild.name}] : ${member.user.tag}`
-        );
-
 
         const config =
             chargerConfigServeur(
@@ -2838,6 +2699,15 @@ client.on(
 
         if (
             !config.welcome.welcomeEnabled
+        ) {
+
+            return;
+
+        }
+
+
+        if (
+            !config.welcome.welcomeChannelId
         ) {
 
             return;
@@ -2867,7 +2737,7 @@ client.on(
         ) {
 
             console.log(
-                `❌ Salon bienvenue introuvable [${member.guild.name}]`
+                `⚠️ Salon bienvenue introuvable sur ${member.guild.name}`
             );
 
             return;
@@ -2888,17 +2758,21 @@ client.on(
                     )
 
                     .setTitle(
+
                         remplacerVariables(
                             config.welcome.welcomeTitle,
                             member
                         )
+
                     )
 
                     .setDescription(
+
                         remplacerVariables(
                             config.welcome.welcomeMessage,
                             member
                         )
+
                     )
 
                     .setFooter({
@@ -2942,18 +2816,28 @@ client.on(
 
             }
 
+            else {
 
-            await salon.send({
+                appliquerBanniereEmbed(
+                    embed,
+                    member.guild
+                );
 
-                embeds: [
-                    embed
-                ]
-
-            });
+            }
 
 
-            console.log(
-                `✅ Bienvenue envoyé [${member.guild.name}] : ${member.user.tag}`
+            await envoyerMessagePersonnalise(
+
+                salon,
+
+                {
+
+                    embeds: [
+                        embed
+                    ]
+
+                }
+
             );
 
         }
@@ -2962,12 +2846,13 @@ client.on(
 
             console.error(
                 `❌ Erreur bienvenue [${member.guild.name}] :`,
-                error
+                error.message
             );
 
         }
 
     }
+
 );
 
 
@@ -2976,13 +2861,10 @@ client.on(
 // ======================================================
 
 client.on(
+
     Events.GuildMemberRemove,
+
     async member => {
-
-        console.log(
-            `📤 Membre parti [${member.guild.name}] : ${member.user.tag}`
-        );
-
 
         const config =
             chargerConfigServeur(
@@ -2992,6 +2874,15 @@ client.on(
 
         if (
             !config.welcome.goodbyeEnabled
+        ) {
+
+            return;
+
+        }
+
+
+        if (
+            !config.welcome.goodbyeChannelId
         ) {
 
             return;
@@ -3021,7 +2912,7 @@ client.on(
         ) {
 
             console.log(
-                `❌ Salon départ introuvable [${member.guild.name}]`
+                `⚠️ Salon départ introuvable sur ${member.guild.name}`
             );
 
             return;
@@ -3052,17 +2943,21 @@ client.on(
                     )
 
                     .setTitle(
+
                         remplacerVariables(
                             config.welcome.goodbyeTitle,
                             member
                         )
+
                     )
 
                     .setDescription(
+
                         remplacerVariables(
                             config.welcome.goodbyeMessage,
                             member
                         )
+
                     )
 
                     .setFooter({
@@ -3106,18 +3001,28 @@ client.on(
 
             }
 
+            else {
 
-            await salon.send({
+                appliquerBanniereEmbed(
+                    embed,
+                    member.guild
+                );
 
-                embeds: [
-                    embed
-                ]
-
-            });
+            }
 
 
-            console.log(
-                `✅ Départ envoyé [${member.guild.name}] : ${member.user.tag}`
+            await envoyerMessagePersonnalise(
+
+                salon,
+
+                {
+
+                    embeds: [
+                        embed
+                    ]
+
+                }
+
             );
 
         }
@@ -3126,21 +3031,24 @@ client.on(
 
             console.error(
                 `❌ Erreur départ [${member.guild.name}] :`,
-                error
+                error.message
             );
 
         }
 
     }
+
 );
 
 
 // ======================================================
-// RÉCUPÉRER IMAGE BIENVENUE / DÉPART
+// RÉCUPÉRATION DES IMAGES ENVOYÉES
 // ======================================================
 
 client.on(
+
     Events.MessageCreate,
+
     async message => {
 
         if (
@@ -3153,18 +3061,157 @@ client.on(
         }
 
 
-        const cleAttente =
+        const cle =
             `${message.guild.id}:${message.author.id}`;
 
 
-        const attente =
+        // ==================================================
+        // IMAGE BIENVENUE / DÉPART
+        // ==================================================
+
+        const attenteBienvenue =
             attenteImageBienvenue.get(
-                cleAttente
+                cle
             );
 
 
         if (
-            !attente
+            attenteBienvenue &&
+            attenteBienvenue.channelId ===
+                message.channel.id
+        ) {
+
+            if (
+                Date.now() >
+                attenteBienvenue.expiresAt
+            ) {
+
+                attenteImageBienvenue.delete(
+                    cle
+                );
+
+
+                await message.reply(
+                    '❌ Temps écoulé. Recommence depuis `/bot-panel`.'
+                );
+
+
+                return;
+
+            }
+
+
+            const attachment =
+                message.attachments.first();
+
+
+            if (
+                !attachment
+            ) {
+
+                await message.reply(
+                    '❌ Tu dois envoyer une image.'
+                );
+
+
+                return;
+
+            }
+
+
+            const contentType =
+                attachment.contentType ||
+                '';
+
+
+            const extensionImage =
+                /\.(png|jpe?g|gif|webp)$/i.test(
+                    attachment.name ||
+                    attachment.url
+                );
+
+
+            if (
+                !contentType.startsWith(
+                    'image/'
+                ) &&
+                !extensionImage
+            ) {
+
+                await message.reply(
+                    '❌ Le fichier envoyé n’est pas une image.'
+                );
+
+
+                return;
+
+            }
+
+
+            const config =
+                chargerConfigServeur(
+                    message.guild.id
+                );
+
+
+            if (
+                attenteBienvenue.type ===
+                'welcome'
+            ) {
+
+                config.welcome.welcomeImageUrl =
+                    attachment.url;
+
+            }
+
+            else {
+
+                config.welcome.goodbyeImageUrl =
+                    attachment.url;
+
+            }
+
+
+            sauvegarderConfigServeur(
+                message.guild.id,
+                config
+            );
+
+
+            attenteImageBienvenue.delete(
+                cle
+            );
+
+
+            await message.reply(
+
+                attenteBienvenue.type ===
+                'welcome'
+
+                    ? '✅ Image d’arrivée enregistrée.'
+
+                    : '✅ Image de départ enregistrée.'
+
+            );
+
+
+            return;
+
+        }
+
+
+        // ==================================================
+        // IMAGE APPARENCE
+        // ==================================================
+
+        const attenteApparence =
+            attenteImageApparence.get(
+                cle
+            );
+
+
+        if (
+            !attenteApparence
         ) {
 
             return;
@@ -3173,7 +3220,7 @@ client.on(
 
 
         if (
-            attente.channelId !==
+            attenteApparence.channelId !==
             message.channel.id
         ) {
 
@@ -3184,11 +3231,11 @@ client.on(
 
         if (
             Date.now() >
-            attente.expiresAt
+            attenteApparence.expiresAt
         ) {
 
-            attenteImageBienvenue.delete(
-                cleAttente
+            attenteImageApparence.delete(
+                cle
             );
 
 
@@ -3211,7 +3258,7 @@ client.on(
         ) {
 
             await message.reply(
-                '❌ Tu dois envoyer une image en pièce jointe.'
+                '❌ Tu dois envoyer une image.'
             );
 
 
@@ -3256,18 +3303,22 @@ client.on(
 
 
         if (
-            attente.type ===
-            'welcome'
+            attenteApparence.type ===
+            'avatar'
         ) {
 
-            config.welcome.welcomeImageUrl =
+            config.appearance.avatarUrl =
                 attachment.url;
 
         }
 
-        else {
 
-            config.welcome.goodbyeImageUrl =
+        else if (
+            attenteApparence.type ===
+            'banner'
+        ) {
+
+            config.appearance.bannerUrl =
                 attachment.url;
 
         }
@@ -3279,37 +3330,41 @@ client.on(
         );
 
 
-        attenteImageBienvenue.delete(
-            cleAttente
+        attenteImageApparence.delete(
+            cle
         );
 
 
         await message.reply(
 
-            attente.type ===
-            'welcome'
+            attenteApparence.type ===
+            'avatar'
 
-                ? '✅ Image d’arrivée enregistrée pour ce serveur.'
+                ? '✅ Avatar du bot enregistré pour ce serveur.'
 
-                : '✅ Image de départ enregistrée pour ce serveur.'
+                : '✅ Bannière du bot enregistrée pour ce serveur.'
 
         );
 
     }
+
 );
 
+
 // ======================================================
-// INTERACTIONS
+// DÉBUT DES INTERACTIONS
 // ======================================================
 
 client.on(
+
     Events.InteractionCreate,
+
     async interaction => {
 
         try {
 
             // ==============================================
-            // SÉCURITÉ : INTERACTIONS UNIQUEMENT SERVEUR
+            // SÉCURITÉ : UNIQUEMENT DANS UN SERVEUR
             // ==============================================
 
             if (
@@ -3328,10 +3383,7 @@ client.on(
                         flags:
                             MessageFlags.Ephemeral
 
-                    })
-                        .catch(
-                            () => {}
-                        );
+                    });
 
                 }
 
@@ -3341,161 +3393,15 @@ client.on(
             }
 
 
-// ======================================================
-// IMAGE BIENVENUE / DÉPART
-// ======================================================
-
-            if (
-                interaction.isButton() &&
-                [
-                    'welcome_image',
-                    'goodbye_image'
-                ].includes(
-                    interaction.customId
-                )
-            ) {
-
-                const type =
-                    interaction.customId ===
-                    'welcome_image'
-
-                        ? 'welcome'
-
-                        : 'goodbye';
-
-
-                const cleAttente =
-                    `${interaction.guild.id}:${interaction.user.id}`;
-
-
-                attenteImageBienvenue.set(
-
-                    cleAttente,
-
-                    {
-
-                        guildId:
-                            interaction.guild.id,
-
-                        type:
-                            type,
-
-                        channelId:
-                            interaction.channel.id,
-
-                        expiresAt:
-                            Date.now() +
-                            120000
-
-                    }
-
-                );
-
-
-                await interaction.reply({
-
-                    content:
-                        type ===
-                        'welcome'
-
-                            ? '🖼️ Envoie maintenant **l’image d’arrivée** dans ce salon.\nTu as **2 minutes**.'
-
-                            : '🖼️ Envoie maintenant **l’image de départ** dans ce salon.\nTu as **2 minutes**.',
-
-                    flags:
-                        MessageFlags.Ephemeral
-
-                });
-
-
-                return;
-
-            }
-
-
-// ======================================================
-// SUPPRIMER IMAGE BIENVENUE / DÉPART
-// ======================================================
-
-            if (
-                interaction.isButton() &&
-                [
-                    'welcome_image_delete',
-                    'goodbye_image_delete'
-                ].includes(
-                    interaction.customId
-                )
-            ) {
-
-                const config =
-                    chargerConfigServeur(
-                        interaction.guild.id
-                    );
-
-
-                const welcome =
-                    interaction.customId ===
-                    'welcome_image_delete';
-
-
-                if (
-                    welcome
-                ) {
-
-                    config.welcome.welcomeImageUrl =
-                        '';
-
-                }
-
-                else {
-
-                    config.welcome.goodbyeImageUrl =
-                        '';
-
-                }
-
-
-                sauvegarderConfigServeur(
-                    interaction.guild.id,
-                    config
-                );
-
-
-                await interaction.reply({
-
-                    content:
-                        welcome
-
-                            ? '✅ Image d’arrivée supprimée pour ce serveur.'
-
-                            : '✅ Image de départ supprimée pour ce serveur.',
-
-                    flags:
-                        MessageFlags.Ephemeral
-
-                });
-
-
-                return;
-
-            }
-
-
-// ======================================================
-// /BOT-PANEL
-// ======================================================
+            // ==============================================
+            // /BOT-PANEL
+            // ==============================================
 
             if (
                 interaction.isChatInputCommand() &&
                 interaction.commandName ===
                     'bot-panel'
             ) {
-
-                const config =
-                    chargerConfigServeur(
-                        interaction.guild.id
-                    );
-
 
                 const embed =
                     new EmbedBuilder()
@@ -3510,7 +3416,7 @@ client.on(
 
                         .setDescription(
                             `Configuration de **${interaction.guild.name}**.\n\n` +
-                            'Seul le staff agrée à accès '
+                            'Chaque serveur possède ses propres paramètres.'
                         )
 
                         .setFooter({
@@ -3599,6 +3505,25 @@ client.on(
 
                                 .setStyle(
                                     ButtonStyle.Secondary
+                                ),
+
+
+                            new ButtonBuilder()
+
+                                .setCustomId(
+                                    'admin_appearance'
+                                )
+
+                                .setLabel(
+                                    'Apparence'
+                                )
+
+                                .setEmoji(
+                                    '🤖'
+                                )
+
+                                .setStyle(
+                                    ButtonStyle.Secondary
                                 )
 
                         );
@@ -3624,18 +3549,17 @@ client.on(
 
             }
 
-
-// ======================================================
-// PANEL BIENVENUE
-// ======================================================
+            // ==================================================
+            // PANEL APPARENCE
+            // ==================================================
 
             if (
                 interaction.isButton() &&
                 interaction.customId ===
-                    'admin_bienvenue'
+                    'admin_appearance'
             ) {
 
-                const r1 =
+                const ligne1 =
                     new ActionRowBuilder()
 
                         .addComponents(
@@ -3643,15 +3567,15 @@ client.on(
                             new ButtonBuilder()
 
                                 .setCustomId(
-                                    'welcome_toggle'
+                                    'appearance_nickname'
                                 )
 
                                 .setLabel(
-                                    'Activer/Désactiver arrivée'
+                                    'Nom du bot'
                                 )
 
                                 .setEmoji(
-                                    '📥'
+                                    '✏️'
                                 )
 
                                 .setStyle(
@@ -3662,127 +3586,11 @@ client.on(
                             new ButtonBuilder()
 
                                 .setCustomId(
-                                    'goodbye_toggle'
+                                    'appearance_avatar'
                                 )
 
                                 .setLabel(
-                                    'Activer/Désactiver départ'
-                                )
-
-                                .setEmoji(
-                                    '📤'
-                                )
-
-                                .setStyle(
-                                    ButtonStyle.Primary
-                                )
-
-                        );
-
-
-                const r2 =
-                    new ActionRowBuilder()
-
-                        .addComponents(
-
-                            new ButtonBuilder()
-
-                                .setCustomId(
-                                    'welcome_channel'
-                                )
-
-                                .setLabel(
-                                    'Salon arrivée'
-                                )
-
-                                .setEmoji(
-                                    '📥'
-                                )
-
-                                .setStyle(
-                                    ButtonStyle.Secondary
-                                ),
-
-
-                            new ButtonBuilder()
-
-                                .setCustomId(
-                                    'goodbye_channel'
-                                )
-
-                                .setLabel(
-                                    'Salon départ'
-                                )
-
-                                .setEmoji(
-                                    '📤'
-                                )
-
-                                .setStyle(
-                                    ButtonStyle.Secondary
-                                )
-
-                        );
-
-
-                const r3 =
-                    new ActionRowBuilder()
-
-                        .addComponents(
-
-                            new ButtonBuilder()
-
-                                .setCustomId(
-                                    'welcome_edit'
-                                )
-
-                                .setLabel(
-                                    'Modifier arrivée'
-                                )
-
-                                .setEmoji(
-                                    '✏️'
-                                )
-
-                                .setStyle(
-                                    ButtonStyle.Secondary
-                                ),
-
-
-                            new ButtonBuilder()
-
-                                .setCustomId(
-                                    'goodbye_edit'
-                                )
-
-                                .setLabel(
-                                    'Modifier départ'
-                                )
-
-                                .setEmoji(
-                                    '✏️'
-                                )
-
-                                .setStyle(
-                                    ButtonStyle.Secondary
-                                )
-
-                        );
-
-
-                const r4 =
-                    new ActionRowBuilder()
-
-                        .addComponents(
-
-                            new ButtonBuilder()
-
-                                .setCustomId(
-                                    'welcome_avatar_toggle'
-                                )
-
-                                .setLabel(
-                                    'Avatar arrivée'
+                                    'Avatar'
                                 )
 
                                 .setEmoji(
@@ -3797,15 +3605,15 @@ client.on(
                             new ButtonBuilder()
 
                                 .setCustomId(
-                                    'goodbye_avatar_toggle'
+                                    'appearance_banner'
                                 )
 
                                 .setLabel(
-                                    'Avatar départ'
+                                    'Bannière'
                                 )
 
                                 .setEmoji(
-                                    '🖼️'
+                                    '🌄'
                                 )
 
                                 .setStyle(
@@ -3815,7 +3623,7 @@ client.on(
                         );
 
 
-                const r5 =
+                const ligne2 =
                     new ActionRowBuilder()
 
                         .addComponents(
@@ -3823,49 +3631,30 @@ client.on(
                             new ButtonBuilder()
 
                                 .setCustomId(
-                                    'welcome_image'
+                                    'appearance_preview'
                                 )
 
                                 .setLabel(
-                                    'Image arrivée'
+                                    'Aperçu'
                                 )
 
                                 .setEmoji(
-                                    '🖼️'
+                                    '👁️'
                                 )
 
                                 .setStyle(
-                                    ButtonStyle.Secondary
+                                    ButtonStyle.Success
                                 ),
 
 
                             new ButtonBuilder()
 
                                 .setCustomId(
-                                    'goodbye_image'
+                                    'appearance_reset_avatar'
                                 )
 
                                 .setLabel(
-                                    'Image départ'
-                                )
-
-                                .setEmoji(
-                                    '🖼️'
-                                )
-
-                                .setStyle(
-                                    ButtonStyle.Secondary
-                                ),
-
-
-                            new ButtonBuilder()
-
-                                .setCustomId(
-                                    'welcome_image_delete'
-                                )
-
-                                .setLabel(
-                                    'Supprimer arrivée'
+                                    'Retirer avatar'
                                 )
 
                                 .setEmoji(
@@ -3880,11 +3669,11 @@ client.on(
                             new ButtonBuilder()
 
                                 .setCustomId(
-                                    'goodbye_image_delete'
+                                    'appearance_reset_banner'
                                 )
 
                                 .setLabel(
-                                    'Supprimer départ'
+                                    'Retirer bannière'
                                 )
 
                                 .setEmoji(
@@ -3902,18 +3691,15 @@ client.on(
 
                     embeds: [
 
-                        creerEmbedConfigBienvenue(
+                        creerEmbedConfigApparence(
                             interaction.guild.id
                         )
 
                     ],
 
                     components: [
-                        r1,
-                        r2,
-                        r3,
-                        r4,
-                        r5
+                        ligne1,
+                        ligne2
                     ]
 
                 });
@@ -3924,20 +3710,14 @@ client.on(
             }
 
 
-// ======================================================
-// TOGGLES BIENVENUE / DÉPART
-// ======================================================
+            // ==================================================
+            // CHANGER NOM DU BOT
+            // ==================================================
 
             if (
                 interaction.isButton() &&
-                [
-                    'welcome_toggle',
-                    'goodbye_toggle',
-                    'welcome_avatar_toggle',
-                    'goodbye_avatar_toggle'
-                ].includes(
-                    interaction.customId
-                )
+                interaction.customId ===
+                    'appearance_nickname'
             ) {
 
                 const config =
@@ -3946,48 +3726,691 @@ client.on(
                     );
 
 
-                if (
-                    interaction.customId ===
-                    'welcome_toggle'
-                ) {
+                const modal =
+                    new ModalBuilder()
 
-                    config.welcome.welcomeEnabled =
-                        !config.welcome.welcomeEnabled;
+                        .setCustomId(
+                            'modal_appearance_nickname'
+                        )
 
-                }
-
-
-                if (
-                    interaction.customId ===
-                    'goodbye_toggle'
-                ) {
-
-                    config.welcome.goodbyeEnabled =
-                        !config.welcome.goodbyeEnabled;
-
-                }
+                        .setTitle(
+                            'Nom du bot'
+                        );
 
 
-                if (
-                    interaction.customId ===
-                    'welcome_avatar_toggle'
-                ) {
+                const nom =
+                    new TextInputBuilder()
 
-                    config.welcome.welcomeShowAvatar =
-                        !config.welcome.welcomeShowAvatar;
+                        .setCustomId(
+                            'appearance_nickname_value'
+                        )
 
-                }
+                        .setLabel(
+                            'Nom sur ce serveur'
+                        )
+
+                        .setPlaceholder(
+                            'Ex : Le Refuge'
+                        )
+
+                        .setValue(
+                            config.appearance.nickname ||
+                            ''
+                        )
+
+                        .setStyle(
+                            TextInputStyle.Short
+                        )
+
+                        .setRequired(
+                            false
+                        )
+
+                        .setMaxLength(
+                            32
+                        );
 
 
-                if (
-                    interaction.customId ===
-                    'goodbye_avatar_toggle'
-                ) {
+                modal.addComponents(
 
-                    config.welcome.goodbyeShowAvatar =
-                        !config.welcome.goodbyeShowAvatar;
+                    new ActionRowBuilder()
 
-                }
+                        .addComponents(
+                            nom
+                        )
+
+                );
+
+
+                await interaction.showModal(
+                    modal
+                );
+
+
+                return;
+
+            }
+
+
+            // ==================================================
+            // SAUVEGARDER NOM DU BOT
+            // ==================================================
+
+            if (
+                interaction.isModalSubmit() &&
+                interaction.customId ===
+                    'modal_appearance_nickname'
+            ) {
+
+                const config =
+                    chargerConfigServeur(
+                        interaction.guild.id
+                    );
+
+
+                config.appearance.nickname =
+                    interaction.fields
+                        .getTextInputValue(
+                            'appearance_nickname_value'
+                        )
+                        .trim();
+
+
+                sauvegarderConfigServeur(
+                    interaction.guild.id,
+                    config
+                );
+
+
+                await appliquerSurnomServeur(
+                    interaction.guild
+                );
+
+
+                await interaction.reply({
+
+                    content:
+
+                        config.appearance.nickname
+
+                            ? `✅ Nom du bot sur **${interaction.guild.name}** : **${config.appearance.nickname}**`
+
+                            : `✅ Nom personnalisé supprimé sur **${interaction.guild.name}**.`,
+
+                    flags:
+                        MessageFlags.Ephemeral
+
+                });
+
+
+                return;
+
+            }
+
+
+            // ==================================================
+            // CHANGER AVATAR
+            // ==================================================
+
+            if (
+                interaction.isButton() &&
+                interaction.customId ===
+                    'appearance_avatar'
+            ) {
+
+                const cle =
+                    `${interaction.guild.id}:${interaction.user.id}`;
+
+
+                attenteImageApparence.set(
+
+                    cle,
+
+                    {
+
+                        type:
+                            'avatar',
+
+                        channelId:
+                            interaction.channel.id,
+
+                        expiresAt:
+                            Date.now() +
+                            120000
+
+                    }
+
+                );
+
+
+                await interaction.reply({
+
+                    content:
+                        '🖼️ Envoie maintenant **l’avatar du bot** dans ce salon.\nTu as **2 minutes**.',
+
+                    flags:
+                        MessageFlags.Ephemeral
+
+                });
+
+
+                return;
+
+            }
+
+
+            // ==================================================
+            // CHANGER BANNIÈRE
+            // ==================================================
+
+            if (
+                interaction.isButton() &&
+                interaction.customId ===
+                    'appearance_banner'
+            ) {
+
+                const cle =
+                    `${interaction.guild.id}:${interaction.user.id}`;
+
+
+                attenteImageApparence.set(
+
+                    cle,
+
+                    {
+
+                        type:
+                            'banner',
+
+                        channelId:
+                            interaction.channel.id,
+
+                        expiresAt:
+                            Date.now() +
+                            120000
+
+                    }
+
+                );
+
+
+                await interaction.reply({
+
+                    content:
+                        '🌄 Envoie maintenant **la bannière du bot** dans ce salon.\nTu as **2 minutes**.',
+
+                    flags:
+                        MessageFlags.Ephemeral
+
+                });
+
+
+                return;
+
+            }
+
+
+            // ==================================================
+            // RETIRER AVATAR
+            // ==================================================
+
+            if (
+                interaction.isButton() &&
+                interaction.customId ===
+                    'appearance_reset_avatar'
+            ) {
+
+                const config =
+                    chargerConfigServeur(
+                        interaction.guild.id
+                    );
+
+
+                config.appearance.avatarUrl =
+                    '';
+
+
+                sauvegarderConfigServeur(
+                    interaction.guild.id,
+                    config
+                );
+
+
+                await interaction.reply({
+
+                    content:
+                        '✅ Avatar personnalisé retiré pour ce serveur.',
+
+                    flags:
+                        MessageFlags.Ephemeral
+
+                });
+
+
+                return;
+
+            }
+
+
+            // ==================================================
+            // RETIRER BANNIÈRE
+            // ==================================================
+
+            if (
+                interaction.isButton() &&
+                interaction.customId ===
+                    'appearance_reset_banner'
+            ) {
+
+                const config =
+                    chargerConfigServeur(
+                        interaction.guild.id
+                    );
+
+
+                config.appearance.bannerUrl =
+                    '';
+
+
+                sauvegarderConfigServeur(
+                    interaction.guild.id,
+                    config
+                );
+
+
+                await interaction.reply({
+
+                    content:
+                        '✅ Bannière retirée pour ce serveur.',
+
+                    flags:
+                        MessageFlags.Ephemeral
+
+                });
+
+
+                return;
+
+            }
+
+
+            // ==================================================
+            // APERÇU APPARENCE
+            // ==================================================
+
+            if (
+                interaction.isButton() &&
+                interaction.customId ===
+                    'appearance_preview'
+            ) {
+
+                const config =
+                    chargerConfigServeur(
+                        interaction.guild.id
+                    );
+
+
+                const embed =
+                    new EmbedBuilder()
+
+                        .setColor(
+                            '#F47B20'
+                        )
+
+                        .setTitle(
+                            '🤖 Aperçu de l’apparence'
+                        )
+
+                        .setDescription(
+                            `Voici l’identité publique utilisée sur **${interaction.guild.name}**.`
+                        )
+
+                        .addFields(
+
+                            {
+                                name:
+                                    'Nom',
+
+                                value:
+                                    obtenirNomPublicServeur(
+                                        interaction.guild
+                                    ),
+
+                                inline:
+                                    true
+                            },
+
+                            {
+                                name:
+                                    'Avatar',
+
+                                value:
+                                    config.appearance.avatarUrl
+                                        ? 'Personnalisé'
+                                        : 'Avatar global',
+
+                                inline:
+                                    true
+                            },
+
+                            {
+                                name:
+                                    'Bannière',
+
+                                value:
+                                    config.appearance.bannerUrl
+                                        ? 'Configurée'
+                                        : 'Aucune',
+
+                                inline:
+                                    true
+                            }
+
+                        )
+
+                        .setThumbnail(
+                            obtenirAvatarPublicServeur(
+                                interaction.guild
+                            )
+                        )
+
+                        .setTimestamp();
+
+
+                appliquerBanniereEmbed(
+                    embed,
+                    interaction.guild
+                );
+
+
+                await interaction.reply({
+
+                    embeds: [
+                        embed
+                    ],
+
+                    flags:
+                        MessageFlags.Ephemeral
+
+                });
+
+
+                return;
+
+            }
+
+            // ==================================================
+            // PANEL TICKETS
+            // ==================================================
+
+            if (
+                interaction.isButton() &&
+                interaction.customId ===
+                    'admin_tickets'
+            ) {
+
+                const ligne1 =
+                    new ActionRowBuilder()
+
+                        .addComponents(
+
+                            new ButtonBuilder()
+
+                                .setCustomId(
+                                    'ticket_staff_role'
+                                )
+
+                                .setLabel(
+                                    'Rôle Staff'
+                                )
+
+                                .setEmoji(
+                                    '🛡️'
+                                )
+
+                                .setStyle(
+                                    ButtonStyle.Primary
+                                ),
+
+
+                            new ButtonBuilder()
+
+                                .setCustomId(
+                                    'ticket_logs_channel'
+                                )
+
+                                .setLabel(
+                                    'Salon Logs'
+                                )
+
+                                .setEmoji(
+                                    '📜'
+                                )
+
+                                .setStyle(
+                                    ButtonStyle.Secondary
+                                ),
+
+
+                            new ButtonBuilder()
+
+                                .setCustomId(
+                                    'ticket_staff_add'
+                                )
+
+                                .setLabel(
+                                    'Ajouter Staff'
+                                )
+
+                                .setEmoji(
+                                    '➕'
+                                )
+
+                                .setStyle(
+                                    ButtonStyle.Success
+                                ),
+
+
+                            new ButtonBuilder()
+
+                                .setCustomId(
+                                    'ticket_staff_remove'
+                                )
+
+                                .setLabel(
+                                    'Retirer Staff'
+                                )
+
+                                .setEmoji(
+                                    '➖'
+                                )
+
+                                .setStyle(
+                                    ButtonStyle.Danger
+                                )
+
+                        );
+
+
+                const ligne2 =
+                    new ActionRowBuilder()
+
+                        .addComponents(
+
+                            new ButtonBuilder()
+
+                                .setCustomId(
+                                    'ticket_type_add'
+                                )
+
+                                .setLabel(
+                                    'Ajouter type'
+                                )
+
+                                .setEmoji(
+                                    '📂'
+                                )
+
+                                .setStyle(
+                                    ButtonStyle.Success
+                                ),
+
+
+                            new ButtonBuilder()
+
+                                .setCustomId(
+                                    'ticket_type_remove'
+                                )
+
+                                .setLabel(
+                                    'Supprimer type'
+                                )
+
+                                .setEmoji(
+                                    '🗑️'
+                                )
+
+                                .setStyle(
+                                    ButtonStyle.Danger
+                                ),
+
+
+                            new ButtonBuilder()
+
+                                .setCustomId(
+                                    'ticket_panel_style'
+                                )
+
+                                .setLabel(
+                                    'Style panneau'
+                                )
+
+                                .setEmoji(
+                                    '🎨'
+                                )
+
+                                .setStyle(
+                                    ButtonStyle.Secondary
+                                ),
+
+
+                            new ButtonBuilder()
+
+                                .setCustomId(
+                                    'ticket_embed_style'
+                                )
+
+                                .setLabel(
+                                    'Style ticket'
+                                )
+
+                                .setEmoji(
+                                    '📝'
+                                )
+
+                                .setStyle(
+                                    ButtonStyle.Secondary
+                                )
+
+                        );
+
+
+                await interaction.update({
+
+                    embeds: [
+
+                        creerEmbedConfigTickets(
+                            interaction.guild.id
+                        )
+
+                    ],
+
+                    components: [
+                        ligne1,
+                        ligne2
+                    ]
+
+                });
+
+
+                return;
+
+            }
+
+
+            // ==================================================
+            // CHOISIR RÔLE STAFF
+            // ==================================================
+
+            if (
+                interaction.isButton() &&
+                interaction.customId ===
+                    'ticket_staff_role'
+            ) {
+
+                const menu =
+                    new RoleSelectMenuBuilder()
+
+                        .setCustomId(
+                            'select_ticket_staff_role'
+                        )
+
+                        .setPlaceholder(
+                            'Choisis le rôle Staff'
+                        )
+
+                        .setMinValues(
+                            1
+                        )
+
+                        .setMaxValues(
+                            1
+                        );
+
+
+                await interaction.reply({
+
+                    content:
+                        '🛡️ Choisis le rôle Staff pour les tickets :',
+
+                    components: [
+
+                        new ActionRowBuilder()
+                            .addComponents(
+                                menu
+                            )
+
+                    ],
+
+                    flags:
+                        MessageFlags.Ephemeral
+
+                });
+
+
+                return;
+
+            }
+
+
+            // ==================================================
+            // SAUVEGARDER RÔLE STAFF
+            // ==================================================
+
+            if (
+                interaction.isRoleSelectMenu() &&
+                interaction.customId ===
+                    'select_ticket_staff_role'
+            ) {
+
+                const config =
+                    chargerConfigServeur(
+                        interaction.guild.id
+                    );
+
+
+                config.tickets.staffRoleId =
+                    interaction.values[0];
 
 
                 sauvegarderConfigServeur(
@@ -3998,16 +4421,11 @@ client.on(
 
                 await interaction.update({
 
-                    embeds: [
-
-                        creerEmbedConfigBienvenue(
-                            interaction.guild.id
-                        )
-
-                    ],
+                    content:
+                        `✅ Rôle Staff configuré : <@&${interaction.values[0]}>`,
 
                     components:
-                        interaction.message.components
+                        []
 
                 });
 
@@ -4017,42 +4435,25 @@ client.on(
             }
 
 
-// ======================================================
-// SALONS BIENVENUE / DÉPART
-// ======================================================
+            // ==================================================
+            // CHOISIR SALON LOGS
+            // ==================================================
 
             if (
                 interaction.isButton() &&
-                [
-                    'welcome_channel',
-                    'goodbye_channel'
-                ].includes(
-                    interaction.customId
-                )
+                interaction.customId ===
+                    'ticket_logs_channel'
             ) {
-
-                const isWelcome =
-                    interaction.customId ===
-                    'welcome_channel';
-
 
                 const menu =
                     new ChannelSelectMenuBuilder()
 
                         .setCustomId(
-                            isWelcome
-
-                                ? 'select_welcome_channel'
-
-                                : 'select_goodbye_channel'
+                            'select_ticket_logs_channel'
                         )
 
                         .setPlaceholder(
-                            isWelcome
-
-                                ? 'Choisis le salon arrivée'
-
-                                : 'Choisis le salon départ'
+                            'Choisis le salon des logs'
                         )
 
                         .addChannelTypes(
@@ -4071,11 +4472,7 @@ client.on(
                 await interaction.reply({
 
                     content:
-                        isWelcome
-
-                            ? '📥 Choisis le salon d’arrivée de **ce serveur** :'
-
-                            : '📤 Choisis le salon de départ de **ce serveur** :',
+                        '📜 Choisis le salon où seront envoyés les logs et transcripts :',
 
                     components: [
 
@@ -4097,18 +4494,14 @@ client.on(
             }
 
 
-// ======================================================
-// ENREGISTRER SALONS BIENVENUE / DÉPART
-// ======================================================
+            // ==================================================
+            // SAUVEGARDER SALON LOGS
+            // ==================================================
 
             if (
                 interaction.isChannelSelectMenu() &&
-                [
-                    'select_welcome_channel',
-                    'select_goodbye_channel'
-                ].includes(
-                    interaction.customId
-                )
+                interaction.customId ===
+                    'select_ticket_logs_channel'
             ) {
 
                 const config =
@@ -4117,26 +4510,8 @@ client.on(
                     );
 
 
-                const isWelcome =
-                    interaction.customId ===
-                    'select_welcome_channel';
-
-
-                if (
-                    isWelcome
-                ) {
-
-                    config.welcome.welcomeChannelId =
-                        interaction.values[0];
-
-                }
-
-                else {
-
-                    config.welcome.goodbyeChannelId =
-                        interaction.values[0];
-
-                }
+                config.tickets.logsChannelId =
+                    interaction.values[0];
 
 
                 sauvegarderConfigServeur(
@@ -4148,11 +4523,7 @@ client.on(
                 await interaction.update({
 
                     content:
-                        `✅ Salon ${
-                            isWelcome
-                                ? 'd’arrivée'
-                                : 'de départ'
-                        } enregistré pour **${interaction.guild.name}** : <#${interaction.values[0]}>`,
+                        `✅ Salon Logs configuré : <#${interaction.values[0]}>`,
 
                     components:
                         []
@@ -4165,278 +4536,9 @@ client.on(
             }
 
 
-// ======================================================
-// MODIFIER BIENVENUE / DÉPART
-// ======================================================
-
-            if (
-                interaction.isButton() &&
-                [
-                    'welcome_edit',
-                    'goodbye_edit'
-                ].includes(
-                    interaction.customId
-                )
-            ) {
-
-                const config =
-                    chargerConfigServeur(
-                        interaction.guild.id
-                    );
-
-
-                const isWelcome =
-                    interaction.customId ===
-                    'welcome_edit';
-
-
-                const modal =
-                    new ModalBuilder()
-
-                        .setCustomId(
-                            isWelcome
-
-                                ? 'modal_welcome_edit'
-
-                                : 'modal_goodbye_edit'
-                        )
-
-                        .setTitle(
-                            isWelcome
-
-                                ? 'Modifier arrivée'
-
-                                : 'Modifier départ'
-                        );
-
-
-                const titre =
-                    new TextInputBuilder()
-
-                        .setCustomId(
-                            'wg_title'
-                        )
-
-                        .setLabel(
-                            'Titre'
-                        )
-
-                        .setValue(
-                            isWelcome
-
-                                ? config.welcome.welcomeTitle
-
-                                : config.welcome.goodbyeTitle
-                        )
-
-                        .setStyle(
-                            TextInputStyle.Short
-                        )
-
-                        .setRequired(
-                            true
-                        );
-
-
-                const message =
-                    new TextInputBuilder()
-
-                        .setCustomId(
-                            'wg_message'
-                        )
-
-                        .setLabel(
-                            'Message'
-                        )
-
-                        .setValue(
-                            isWelcome
-
-                                ? config.welcome.welcomeMessage
-
-                                : config.welcome.goodbyeMessage
-                        )
-
-                        .setStyle(
-                            TextInputStyle.Paragraph
-                        )
-
-                        .setRequired(
-                            true
-                        );
-
-
-                const couleur =
-                    new TextInputBuilder()
-
-                        .setCustomId(
-                            'wg_color'
-                        )
-
-                        .setLabel(
-                            'Couleur HEX'
-                        )
-
-                        .setValue(
-                            isWelcome
-
-                                ? config.welcome.welcomeColor
-
-                                : config.welcome.goodbyeColor
-                        )
-
-                        .setStyle(
-                            TextInputStyle.Short
-                        )
-
-                        .setRequired(
-                            true
-                        );
-
-
-                modal.addComponents(
-
-                    new ActionRowBuilder()
-                        .addComponents(
-                            titre
-                        ),
-
-                    new ActionRowBuilder()
-                        .addComponents(
-                            message
-                        ),
-
-                    new ActionRowBuilder()
-                        .addComponents(
-                            couleur
-                        )
-
-                );
-
-
-                await interaction.showModal(
-                    modal
-                );
-
-
-                return;
-
-            }
-
-
-// ======================================================
-// SAUVEGARDER MODIFICATION BIENVENUE / DÉPART
-// ======================================================
-
-            if (
-                interaction.isModalSubmit() &&
-                [
-                    'modal_welcome_edit',
-                    'modal_goodbye_edit'
-                ].includes(
-                    interaction.customId
-                )
-            ) {
-
-                const config =
-                    chargerConfigServeur(
-                        interaction.guild.id
-                    );
-
-
-                const isWelcome =
-                    interaction.customId ===
-                    'modal_welcome_edit';
-
-
-                const titre =
-                    interaction.fields
-                        .getTextInputValue(
-                            'wg_title'
-                        );
-
-
-                const message =
-                    interaction.fields
-                        .getTextInputValue(
-                            'wg_message'
-                        );
-
-
-                const couleur =
-                    interaction.fields
-                        .getTextInputValue(
-                            'wg_color'
-                        );
-
-
-                if (
-                    isWelcome
-                ) {
-
-                    config.welcome.welcomeTitle =
-                        titre;
-
-
-                    config.welcome.welcomeMessage =
-                        message;
-
-
-                    config.welcome.welcomeColor =
-                        couleurValide(
-                            couleur,
-                            '#F47B20'
-                        );
-
-                }
-
-                else {
-
-                    config.welcome.goodbyeTitle =
-                        titre;
-
-
-                    config.welcome.goodbyeMessage =
-                        message;
-
-
-                    config.welcome.goodbyeColor =
-                        couleurValide(
-                            couleur,
-                            '#ED4245'
-                        );
-
-                }
-
-
-                sauvegarderConfigServeur(
-                    interaction.guild.id,
-                    config
-                );
-
-
-                await interaction.reply({
-
-                    content:
-                        `✅ Message ${
-                            isWelcome
-                                ? 'd’arrivée'
-                                : 'de départ'
-                        } de **${interaction.guild.name}** modifié.`,
-
-                    flags:
-                        MessageFlags.Ephemeral
-
-                });
-
-
-                return;
-
-            }
-
-// ======================================================
-// AJOUTER STAFF
-// ======================================================
+            // ==================================================
+            // AJOUTER MEMBRE STAFF
+            // ==================================================
 
             if (
                 interaction.isButton() &&
@@ -4452,7 +4554,7 @@ client.on(
                         )
 
                         .setPlaceholder(
-                            'Choisis un membre du staff'
+                            'Choisis un membre Staff'
                         )
 
                         .setMinValues(
@@ -4467,7 +4569,7 @@ client.on(
                 await interaction.reply({
 
                     content:
-                        '👥 Sélectionne le membre du Staff de ce serveur :',
+                        '👤 Choisis le membre du Staff à ajouter :',
 
                     components: [
 
@@ -4489,9 +4591,9 @@ client.on(
             }
 
 
-// ======================================================
-// SÉLECTION STAFF À AJOUTER
-// ======================================================
+            // ==================================================
+            // MEMBRE STAFF SÉLECTIONNÉ
+            // ==================================================
 
             if (
                 interaction.isUserSelectMenu() &&
@@ -4507,7 +4609,7 @@ client.on(
                     new ModalBuilder()
 
                         .setCustomId(
-                            `modal_ticket_staff_add_${userId}`
+                            `modal_ticket_staff_emoji_${userId}`
                         )
 
                         .setTitle(
@@ -4519,7 +4621,7 @@ client.on(
                     new TextInputBuilder()
 
                         .setCustomId(
-                            'staff_emoji'
+                            'ticket_staff_emoji'
                         )
 
                         .setLabel(
@@ -4527,7 +4629,7 @@ client.on(
                         )
 
                         .setPlaceholder(
-                            'Ex : 🐸'
+                            'Ex : 🛡️'
                         )
 
                         .setStyle(
@@ -4535,17 +4637,18 @@ client.on(
                         )
 
                         .setRequired(
-                            true
+                            false
                         )
 
                         .setMaxLength(
-                            10
+                            20
                         );
 
 
                 modal.addComponents(
 
                     new ActionRowBuilder()
+
                         .addComponents(
                             emoji
                         )
@@ -4563,20 +4666,20 @@ client.on(
             }
 
 
-// ======================================================
-// SAUVEGARDER STAFF
-// ======================================================
+            // ==================================================
+            // SAUVEGARDER MEMBRE STAFF + EMOJI
+            // ==================================================
 
             if (
                 interaction.isModalSubmit() &&
                 interaction.customId.startsWith(
-                    'modal_ticket_staff_add_'
+                    'modal_ticket_staff_emoji_'
                 )
             ) {
 
                 const userId =
                     interaction.customId.replace(
-                        'modal_ticket_staff_add_',
+                        'modal_ticket_staff_emoji_',
                         ''
                     );
 
@@ -4587,18 +4690,21 @@ client.on(
                     );
 
 
+                const emoji =
+                    interaction.fields
+                        .getTextInputValue(
+                            'ticket_staff_emoji'
+                        )
+                        .trim();
+
+
                 config.tickets.staffMembers[
                     userId
                 ] = {
 
                     emoji:
                         emojiStaffValide(
-
-                            interaction.fields
-                                .getTextInputValue(
-                                    'staff_emoji'
-                                )
-
+                            emoji
                         )
 
                 };
@@ -4613,7 +4719,7 @@ client.on(
                 await interaction.reply({
 
                     content:
-                        `✅ <@${userId}> ajouté aux Staffs Tickets de **${interaction.guild.name}**.`,
+                        `✅ <@${userId}> ajouté au Staff Tickets avec ${emojiStaffValide(emoji)}.`,
 
                     flags:
                         MessageFlags.Ephemeral
@@ -4626,18 +4732,14 @@ client.on(
             }
 
 
-// ======================================================
-// MODIFIER / RETIRER STAFF
-// ======================================================
+            // ==================================================
+            // RETIRER MEMBRE STAFF
+            // ==================================================
 
             if (
                 interaction.isButton() &&
-                [
-                    'ticket_staff_edit',
-                    'ticket_staff_delete'
-                ].includes(
-                    interaction.customId
-                )
+                interaction.customId ===
+                    'ticket_staff_remove'
             ) {
 
                 const config =
@@ -4659,7 +4761,7 @@ client.on(
                     await interaction.reply({
 
                         content:
-                            '❌ Aucun Staff personnalisé sur ce serveur.',
+                            '❌ Aucun membre Staff configuré.',
 
                         flags:
                             MessageFlags.Ephemeral
@@ -4672,8 +4774,16 @@ client.on(
                 }
 
 
-                const options =
-                    [];
+                const menu =
+                    new StringSelectMenuBuilder()
+
+                        .setCustomId(
+                            'select_ticket_staff_remove'
+                        )
+
+                        .setPlaceholder(
+                            'Choisis le Staff à retirer'
+                        );
 
 
                 for (
@@ -4684,85 +4794,43 @@ client.on(
                     )
                 ) {
 
-                    let userName =
-                        `Utilisateur ${userId}`;
+                    const membre =
+                        interaction.guild.members.cache.get(
+                            userId
+                        );
 
 
-                    try {
-
-                        const user =
-                            await client.users.fetch(
-                                userId
-                            );
-
-
-                        userName =
-                            user.username;
-
-                    }
-
-                    catch (_) {}
-
-
-                    options.push({
+                    menu.addOptions({
 
                         label:
-                            `${emojiStaffValide(infos.emoji)} ${userName}`
-                                .slice(
-                                    0,
-                                    100
-                                ),
-
-                        description:
-                            `ID : ${userId}`
-                                .slice(
-                                    0,
-                                    100
-                                ),
+                            membre?.user.username ||
+                            userId,
 
                         value:
-                            userId
+                            userId,
+
+                        description:
+                            'Retirer ce membre du Staff Tickets',
+
+                        emoji:
+                            emojiStaffValide(
+                                infos.emoji
+                            )
 
                     });
 
                 }
 
 
-                const edit =
-                    interaction.customId ===
-                    'ticket_staff_edit';
-
-
-                const menu =
-                    new StringSelectMenuBuilder()
-
-                        .setCustomId(
-                            edit
-                                ? 'select_ticket_staff_edit'
-                                : 'select_ticket_staff_delete'
-                        )
-
-                        .setPlaceholder(
-                            edit
-                                ? 'Staff à modifier'
-                                : 'Staff à retirer'
-                        )
-
-                        .addOptions(
-                            options
-                        );
-
-
                 await interaction.reply({
 
                     content:
-                        edit
-                            ? '✏️ Choisis le Staff à modifier :'
-                            : '🗑️ Choisis le Staff à retirer :',
+                        '➖ Choisis le membre Staff à retirer :',
 
                     components: [
 
                         new ActionRowBuilder()
+
                             .addComponents(
                                 menu
                             )
@@ -4780,253 +4848,18 @@ client.on(
             }
 
 
-// ======================================================
-// MODIFIER EMOJI STAFF
-// ======================================================
+            // ==================================================
+            // CONFIRMER RETRAIT STAFF
+            // ==================================================
 
             if (
                 interaction.isStringSelectMenu() &&
                 interaction.customId ===
-                    'select_ticket_staff_edit'
+                    'select_ticket_staff_remove'
             ) {
 
                 const userId =
                     interaction.values[0];
-
-
-                const config =
-                    chargerConfigServeur(
-                        interaction.guild.id
-                    );
-
-
-                const infos =
-                    config.tickets.staffMembers[
-                        userId
-                    ];
-
-
-                if (
-                    !infos
-                ) {
-
-                    return;
-
-                }
-
-
-                const modal =
-                    new ModalBuilder()
-
-                        .setCustomId(
-                            `modal_ticket_staff_edit_${userId}`
-                        )
-
-                        .setTitle(
-                            'Modifier emoji Staff'
-                        );
-
-
-                const emoji =
-                    new TextInputBuilder()
-
-                        .setCustomId(
-                            'staff_emoji_edit'
-                        )
-
-                        .setLabel(
-                            'Nouvel emoji'
-                        )
-
-                        .setValue(
-                            emojiStaffValide(
-                                infos.emoji
-                            )
-                        )
-
-                        .setStyle(
-                            TextInputStyle.Short
-                        )
-
-                        .setRequired(
-                            true
-                        )
-
-                        .setMaxLength(
-                            10
-                        );
-
-
-                modal.addComponents(
-
-                    new ActionRowBuilder()
-                        .addComponents(
-                            emoji
-                        )
-
-                );
-
-
-                await interaction.showModal(
-                    modal
-                );
-
-
-                return;
-
-            }
-
-
-            if (
-                interaction.isModalSubmit() &&
-                interaction.customId.startsWith(
-                    'modal_ticket_staff_edit_'
-                )
-            ) {
-
-                const userId =
-                    interaction.customId.replace(
-                        'modal_ticket_staff_edit_',
-                        ''
-                    );
-
-
-                const config =
-                    chargerConfigServeur(
-                        interaction.guild.id
-                    );
-
-
-                if (
-                    !config.tickets.staffMembers[
-                        userId
-                    ]
-                ) {
-
-                    return;
-
-                }
-
-
-                config.tickets.staffMembers[
-                    userId
-                ].emoji =
-                    emojiStaffValide(
-
-                        interaction.fields
-                            .getTextInputValue(
-                                'staff_emoji_edit'
-                            )
-
-                    );
-
-
-                sauvegarderConfigServeur(
-                    interaction.guild.id,
-                    config
-                );
-
-
-                await interaction.reply({
-
-                    content:
-                        `✅ Emoji de <@${userId}> modifié sur **${interaction.guild.name}**.`,
-
-                    flags:
-                        MessageFlags.Ephemeral
-
-                });
-
-
-                return;
-
-            }
-
-
-// ======================================================
-// RETIRER STAFF
-// ======================================================
-
-            if (
-                interaction.isStringSelectMenu() &&
-                interaction.customId ===
-                    'select_ticket_staff_delete'
-            ) {
-
-                const userId =
-                    interaction.values[0];
-
-
-                const ligne =
-                    new ActionRowBuilder()
-
-                        .addComponents(
-
-                            new ButtonBuilder()
-
-                                .setCustomId(
-                                    `confirm_ticket_staff_delete_${userId}`
-                                )
-
-                                .setLabel(
-                                    'Confirmer'
-                                )
-
-                                .setEmoji(
-                                    '🗑️'
-                                )
-
-                                .setStyle(
-                                    ButtonStyle.Danger
-                                ),
-
-
-                            new ButtonBuilder()
-
-                                .setCustomId(
-                                    'cancel_ticket_staff_delete'
-                                )
-
-                                .setLabel(
-                                    'Annuler'
-                                )
-
-                                .setStyle(
-                                    ButtonStyle.Secondary
-                                )
-
-                        );
-
-
-                await interaction.update({
-
-                    content:
-                        `⚠️ Retirer <@${userId}> des Staffs Tickets de **${interaction.guild.name}** ?`,
-
-                    components: [
-                        ligne
-                    ]
-
-                });
-
-
-                return;
-
-            }
-
-
-            if (
-                interaction.isButton() &&
-                interaction.customId.startsWith(
-                    'confirm_ticket_staff_delete_'
-                )
-            ) {
-
-                const userId =
-                    interaction.customId.replace(
-                        'confirm_ticket_staff_delete_',
-                        ''
-                    );
 
 
                 const config =
@@ -5049,7 +4882,7 @@ client.on(
                 await interaction.update({
 
                     content:
-                        `✅ <@${userId}> retiré des Staffs Tickets de **${interaction.guild.name}**.`,
+                        `✅ <@${userId}> retiré du Staff Tickets.`,
 
                     components:
                         []
@@ -5062,31 +4895,9 @@ client.on(
             }
 
 
-            if (
-                interaction.isButton() &&
-                interaction.customId ===
-                    'cancel_ticket_staff_delete'
-            ) {
-
-                await interaction.update({
-
-                    content:
-                        '❌ Suppression annulée.',
-
-                    components:
-                        []
-
-                });
-
-
-                return;
-
-            }
-
-
-// ======================================================
-// AJOUTER TYPE TICKET
-// ======================================================
+            // ==================================================
+            // AJOUTER TYPE DE TICKET
+            // ==================================================
 
             if (
                 interaction.isButton() &&
@@ -5110,11 +4921,11 @@ client.on(
                     new TextInputBuilder()
 
                         .setCustomId(
-                            'ticket_name'
+                            'ticket_type_name'
                         )
 
                         .setLabel(
-                            'Nom'
+                            'Nom du type'
                         )
 
                         .setPlaceholder(
@@ -5127,6 +4938,10 @@ client.on(
 
                         .setRequired(
                             true
+                        )
+
+                        .setMaxLength(
+                            50
                         );
 
 
@@ -5134,7 +4949,7 @@ client.on(
                     new TextInputBuilder()
 
                         .setCustomId(
-                            'ticket_emoji'
+                            'ticket_type_emoji'
                         )
 
                         .setLabel(
@@ -5142,7 +4957,7 @@ client.on(
                         )
 
                         .setPlaceholder(
-                            'Ex : 🛡️'
+                            'Ex : 📋'
                         )
 
                         .setStyle(
@@ -5151,34 +4966,10 @@ client.on(
 
                         .setRequired(
                             false
-                        );
-
-
-                const description =
-                    new TextInputBuilder()
-
-                        .setCustomId(
-                            'ticket_description'
-                        )
-
-                        .setLabel(
-                            'Description'
-                        )
-
-                        .setPlaceholder(
-                            'Ex : Ouvrir une candidature'
-                        )
-
-                        .setStyle(
-                            TextInputStyle.Paragraph
-                        )
-
-                        .setRequired(
-                            true
                         )
 
                         .setMaxLength(
-                            100
+                            20
                         );
 
 
@@ -5192,11 +4983,6 @@ client.on(
                     new ActionRowBuilder()
                         .addComponents(
                             emoji
-                        ),
-
-                    new ActionRowBuilder()
-                        .addComponents(
-                            description
                         )
 
                 );
@@ -5212,9 +4998,9 @@ client.on(
             }
 
 
-// ======================================================
-// SAUVEGARDER TYPE TICKET
-// ======================================================
+            // ==================================================
+            // NOM TYPE VALIDÉ → CHOIX CATÉGORIE
+            // ==================================================
 
             if (
                 interaction.isModalSubmit() &&
@@ -5225,8 +5011,24 @@ client.on(
                 const nom =
                     interaction.fields
                         .getTextInputValue(
-                            'ticket_name'
-                        );
+                            'ticket_type_name'
+                        )
+                        .trim();
+
+
+                const emoji =
+                    interaction.fields
+                        .getTextInputValue(
+                            'ticket_type_emoji'
+                        )
+                        .trim();
+
+
+                const typeId =
+                    creerSlug(
+                        nom
+                    ) ||
+                    `ticket-${Date.now()}`;
 
 
                 const config =
@@ -5235,36 +5037,8 @@ client.on(
                     );
 
 
-                let id =
-                    creerSlug(
-                        nom
-                    );
-
-
-                if (
-                    !id
-                ) {
-
-                    id =
-                        `ticket-${Date.now()}`;
-
-                }
-
-
-                if (
-                    config.tickets.types[
-                        id
-                    ]
-                ) {
-
-                    id =
-                        `${id}-${Date.now()}`;
-
-                }
-
-
                 config.tickets.types[
-                    id
+                    typeId
                 ] = {
 
                     name:
@@ -5272,19 +5046,8 @@ client.on(
 
                     emoji:
                         emojiValide(
-
-                            interaction.fields
-                                .getTextInputValue(
-                                    'ticket_emoji'
-                                )
-
+                            emoji
                         ),
-
-                    description:
-                        interaction.fields
-                            .getTextInputValue(
-                                'ticket_description'
-                            ),
 
                     categoryId:
                         ''
@@ -5302,11 +5065,11 @@ client.on(
                     new ChannelSelectMenuBuilder()
 
                         .setCustomId(
-                            `ticket_new_category_${id}`
+                            `select_ticket_type_category_${typeId}`
                         )
 
                         .setPlaceholder(
-                            `Catégorie pour ${nom}`
+                            'Choisis la catégorie Discord'
                         )
 
                         .addChannelTypes(
@@ -5325,7 +5088,7 @@ client.on(
                 await interaction.reply({
 
                     content:
-                        `✅ Type **${config.tickets.types[id].emoji} ${nom}** créé sur **${interaction.guild.name}**.\n\nChoisis maintenant sa catégorie :`,
+                        `📂 Type **${nom}** créé.\nChoisis maintenant sa catégorie :`,
 
                     components: [
 
@@ -5347,20 +5110,20 @@ client.on(
             }
 
 
-// ======================================================
-// CATÉGORIE NOUVEAU TYPE
-// ======================================================
+            // ==================================================
+            // SAUVEGARDER CATÉGORIE DU TYPE
+            // ==================================================
 
             if (
                 interaction.isChannelSelectMenu() &&
                 interaction.customId.startsWith(
-                    'ticket_new_category_'
+                    'select_ticket_type_category_'
                 )
             ) {
 
-                const id =
+                const typeId =
                     interaction.customId.replace(
-                        'ticket_new_category_',
+                        'select_ticket_type_category_',
                         ''
                     );
 
@@ -5371,20 +5134,33 @@ client.on(
                     );
 
 
+                const type =
+                    config.tickets.types[
+                        typeId
+                    ];
+
+
                 if (
-                    !config.tickets.types[
-                        id
-                    ]
+                    !type
                 ) {
+
+                    await interaction.update({
+
+                        content:
+                            '❌ Ce type de ticket n’existe plus.',
+
+                        components:
+                            []
+
+                    });
+
 
                     return;
 
                 }
 
 
-                config.tickets.types[
-                    id
-                ].categoryId =
+                type.categoryId =
                     interaction.values[0];
 
 
@@ -5397,7 +5173,7 @@ client.on(
                 await interaction.update({
 
                     content:
-                        `✅ Catégorie enregistrée : <#${interaction.values[0]}>`,
+                        `✅ ${emojiValide(type.emoji)} **${type.name}** utilisera la catégorie <#${interaction.values[0]}>.`,
 
                     components:
                         []
@@ -5410,18 +5186,14 @@ client.on(
             }
 
 
-// ======================================================
-// MODIFIER / SUPPRIMER TYPE
-// ======================================================
+            // ==================================================
+            // SUPPRIMER TYPE DE TICKET
+            // ==================================================
 
             if (
                 interaction.isButton() &&
-                [
-                    'ticket_type_edit',
-                    'ticket_type_delete'
-                ].includes(
-                    interaction.customId
-                )
+                interaction.customId ===
+                    'ticket_type_remove'
             ) {
 
                 const config =
@@ -5443,7 +5215,7 @@ client.on(
                     await interaction.reply({
 
                         content:
-                            '❌ Aucun type disponible sur ce serveur.',
+                            '❌ Aucun type de ticket à supprimer.',
 
                         flags:
                             MessageFlags.Ephemeral
@@ -5456,71 +5228,49 @@ client.on(
                 }
 
 
-                const edit =
-                    interaction.customId ===
-                    'ticket_type_edit';
-
-
-                const options =
-                    types
-                        .slice(
-                            0,
-                            25
-                        )
-                        .map(
-                            ([id, type]) => ({
-
-                                label:
-                                    `${emojiValide(type.emoji)} ${type.name}`
-                                        .slice(
-                                            0,
-                                            100
-                                        ),
-
-                                description:
-                                    edit
-                                        ? (
-                                            type.description ||
-                                            'Ticket'
-                                        ).slice(
-                                            0,
-                                            100
-                                        )
-                                        : undefined,
-
-                                value:
-                                    id
-
-                            })
-                        );
-
-
                 const menu =
                     new StringSelectMenuBuilder()
 
                         .setCustomId(
-                            edit
-                                ? 'select_ticket_type_edit'
-                                : 'select_ticket_type_delete'
+                            'select_ticket_type_delete'
                         )
 
                         .setPlaceholder(
-                            edit
-                                ? 'Choisis le type'
-                                : 'Type à supprimer'
-                        )
-
-                        .addOptions(
-                            options
+                            'Choisis le type à supprimer'
                         );
+
+
+                for (
+                    const [typeId, type]
+                    of types.slice(
+                        0,
+                        25
+                    )
+                ) {
+
+                    menu.addOptions({
+
+                        label:
+                            type.name.slice(
+                                0,
+                                100
+                            ),
+
+                        value:
+                            typeId,
+
+                        description:
+                            'Supprimer ce type de ticket'
+
+                    });
+
+                }
 
 
                 await interaction.reply({
 
                     content:
-                        edit
-                            ? '✏️ Choisis le type à modifier :'
-                            : '🗑️ Choisis le type à supprimer :',
+                        '🗑️ Choisis le type de ticket à supprimer :',
 
                     components: [
 
@@ -5542,707 +5292,14 @@ client.on(
             }
 
 
-// ======================================================
-// MODIFIER TYPE
-// ======================================================
-
-            if (
-                interaction.isStringSelectMenu() &&
-                interaction.customId ===
-                    'select_ticket_type_edit'
-            ) {
-
-                const id =
-                    interaction.values[0];
-
-
-                const config =
-                    chargerConfigServeur(
-                        interaction.guild.id
-                    );
-
-
-                const type =
-                    config.tickets.types[
-                        id
-                    ];
-
-
-                if (
-                    !type
-                ) {
-
-                    return;
-
-                }
-
-
-                const modal =
-                    new ModalBuilder()
-
-                        .setCustomId(
-                            `modal_ticket_type_edit_${id}`
-                        )
-
-                        .setTitle(
-                            'Modifier type'
-                        );
-
-
-                const nom =
-                    new TextInputBuilder()
-
-                        .setCustomId(
-                            'ticket_name_edit'
-                        )
-
-                        .setLabel(
-                            'Nom'
-                        )
-
-                        .setValue(
-                            type.name
-                        )
-
-                        .setStyle(
-                            TextInputStyle.Short
-                        )
-
-                        .setRequired(
-                            true
-                        );
-
-
-                const emoji =
-                    new TextInputBuilder()
-
-                        .setCustomId(
-                            'ticket_emoji_edit'
-                        )
-
-                        .setLabel(
-                            'Emoji'
-                        )
-
-                        .setValue(
-                            emojiValide(
-                                type.emoji
-                            )
-                        )
-
-                        .setStyle(
-                            TextInputStyle.Short
-                        )
-
-                        .setRequired(
-                            false
-                        );
-
-
-                const description =
-                    new TextInputBuilder()
-
-                        .setCustomId(
-                            'ticket_description_edit'
-                        )
-
-                        .setLabel(
-                            'Description'
-                        )
-
-                        .setValue(
-                            type.description ||
-                            ''
-                        )
-
-                        .setStyle(
-                            TextInputStyle.Paragraph
-                        )
-
-                        .setRequired(
-                            true
-                        )
-
-                        .setMaxLength(
-                            100
-                        );
-
-
-                modal.addComponents(
-
-                    new ActionRowBuilder()
-                        .addComponents(
-                            nom
-                        ),
-
-                    new ActionRowBuilder()
-                        .addComponents(
-                            emoji
-                        ),
-
-                    new ActionRowBuilder()
-                        .addComponents(
-                            description
-                        )
-
-                );
-
-
-                await interaction.showModal(
-                    modal
-                );
-
-
-                return;
-
-            }
-
-
-            if (
-                interaction.isModalSubmit() &&
-                interaction.customId.startsWith(
-                    'modal_ticket_type_edit_'
-                )
-            ) {
-
-                const id =
-                    interaction.customId.replace(
-                        'modal_ticket_type_edit_',
-                        ''
-                    );
-
-
-                const config =
-                    chargerConfigServeur(
-                        interaction.guild.id
-                    );
-
-
-                const type =
-                    config.tickets.types[
-                        id
-                    ];
-
-
-                if (
-                    !type
-                ) {
-
-                    return;
-
-                }
-
-
-                type.name =
-                    interaction.fields
-                        .getTextInputValue(
-                            'ticket_name_edit'
-                        );
-
-
-                type.emoji =
-                    emojiValide(
-
-                        interaction.fields
-                            .getTextInputValue(
-                                'ticket_emoji_edit'
-                            )
-
-                    );
-
-
-                type.description =
-                    interaction.fields
-                        .getTextInputValue(
-                            'ticket_description_edit'
-                        );
-
-
-                sauvegarderConfigServeur(
-                    interaction.guild.id,
-                    config
-                );
-
-
-                const menu =
-                    new ChannelSelectMenuBuilder()
-
-                        .setCustomId(
-                            `ticket_edit_category_${id}`
-                        )
-
-                        .setPlaceholder(
-                            'Choisir la catégorie'
-                        )
-
-                        .addChannelTypes(
-                            ChannelType.GuildCategory
-                        )
-
-                        .setMinValues(
-                            1
-                        )
-
-                        .setMaxValues(
-                            1
-                        );
-
-
-                await interaction.reply({
-
-                    content:
-                        `✅ **${type.emoji} ${type.name}** modifié sur **${interaction.guild.name}**.\n\nTu peux aussi changer sa catégorie :`,
-
-                    components: [
-
-                        new ActionRowBuilder()
-                            .addComponents(
-                                menu
-                            )
-
-                    ],
-
-                    flags:
-                        MessageFlags.Ephemeral
-
-                });
-
-
-                return;
-
-            }
-
-
-            if (
-                interaction.isChannelSelectMenu() &&
-                interaction.customId.startsWith(
-                    'ticket_edit_category_'
-                )
-            ) {
-
-                const id =
-                    interaction.customId.replace(
-                        'ticket_edit_category_',
-                        ''
-                    );
-
-
-                const config =
-                    chargerConfigServeur(
-                        interaction.guild.id
-                    );
-
-
-                if (
-                    !config.tickets.types[
-                        id
-                    ]
-                ) {
-
-                    return;
-
-                }
-
-
-                config.tickets.types[
-                    id
-                ].categoryId =
-                    interaction.values[0];
-
-
-                sauvegarderConfigServeur(
-                    interaction.guild.id,
-                    config
-                );
-
-
-                await interaction.update({
-
-                    content:
-                        `✅ Nouvelle catégorie : <#${interaction.values[0]}>`,
-
-                    components:
-                        []
-
-                });
-
-
-                return;
-
-            }
-
-
-// ======================================================
-// SUPPRIMER TYPE
-// ======================================================
+            // ==================================================
+            // CONFIRMER SUPPRESSION TYPE
+            // ==================================================
 
             if (
                 interaction.isStringSelectMenu() &&
                 interaction.customId ===
                     'select_ticket_type_delete'
-            ) {
-
-                const id =
-                    interaction.values[0];
-
-
-                const config =
-                    chargerConfigServeur(
-                        interaction.guild.id
-                    );
-
-
-                const type =
-                    config.tickets.types[
-                        id
-                    ];
-
-
-                if (
-                    !type
-                ) {
-
-                    return;
-
-                }
-
-
-                const ligne =
-                    new ActionRowBuilder()
-
-                        .addComponents(
-
-                            new ButtonBuilder()
-
-                                .setCustomId(
-                                    `confirm_delete_ticket_type_${id}`
-                                )
-
-                                .setLabel(
-                                    'Confirmer'
-                                )
-
-                                .setEmoji(
-                                    '🗑️'
-                                )
-
-                                .setStyle(
-                                    ButtonStyle.Danger
-                                )
-
-                        );
-
-
-                await interaction.update({
-
-                    content:
-                        `⚠️ Supprimer **${emojiValide(type.emoji)} ${type.name}** de **${interaction.guild.name}** ?`,
-
-                    components: [
-                        ligne
-                    ]
-
-                });
-
-
-                return;
-
-            }
-
-
-            if (
-                interaction.isButton() &&
-                interaction.customId.startsWith(
-                    'confirm_delete_ticket_type_'
-                )
-            ) {
-
-                const id =
-                    interaction.customId.replace(
-                        'confirm_delete_ticket_type_',
-                        ''
-                    );
-
-
-                const config =
-                    chargerConfigServeur(
-                        interaction.guild.id
-                    );
-
-
-                const type =
-                    config.tickets.types[
-                        id
-                    ];
-
-
-                if (
-                    !type
-                ) {
-
-                    return;
-
-                }
-
-
-                delete config.tickets.types[
-                    id
-                ];
-
-
-                sauvegarderConfigServeur(
-                    interaction.guild.id,
-                    config
-                );
-
-
-                await interaction.update({
-
-                    content:
-                        `✅ ${emojiValide(type.emoji)} ${type.name} supprimé de **${interaction.guild.name}**.`,
-
-                    components:
-                        []
-
-                });
-
-
-                return;
-
-            }
-
-
-// ======================================================
-// /TICKET-PANEL
-// ======================================================
-
-            if (
-                interaction.isChatInputCommand() &&
-                interaction.commandName ===
-                    'ticket-panel'
-            ) {
-
-                const config =
-                    chargerConfigServeur(
-                        interaction.guild.id
-                    );
-
-
-                const panel =
-                    config.tickets.panel;
-
-
-                const embed =
-                    new EmbedBuilder()
-
-                        .setColor(
-                            couleurValide(
-                                panel.color,
-                                '#F47B20'
-                            )
-                        )
-
-                        .setTitle(
-                            panel.title
-                        )
-
-                        .setDescription(
-                            panel.description
-                        );
-
-
-                if (
-                    panel.footer
-                ) {
-
-                    embed.setFooter({
-
-                        text:
-                            panel.footer
-
-                    });
-
-                }
-
-
-                const bouton =
-                    new ButtonBuilder()
-
-                        .setCustomId(
-                            'ouvrir_ticket'
-                        )
-
-                        .setLabel(
-                            panel.buttonLabel
-                        )
-
-                        .setEmoji(
-                            '🎫'
-                        )
-
-                        .setStyle(
-                            ButtonStyle.Primary
-                        );
-
-
-                await interaction.reply({
-
-                    content:
-                        '✅ Panneau créé sur ce serveur.',
-
-                    flags:
-                        MessageFlags.Ephemeral
-
-                });
-
-
-                await interaction.channel.send({
-
-                    embeds: [
-                        embed
-                    ],
-
-                    components: [
-
-                        new ActionRowBuilder()
-                            .addComponents(
-                                bouton
-                            )
-
-                    ]
-
-                });
-
-
-                return;
-
-            }
-
-
-// ======================================================
-// OUVRIR MENU TICKET
-// ======================================================
-
-            if (
-                interaction.isButton() &&
-                interaction.customId ===
-                    'ouvrir_ticket'
-            ) {
-
-                const config =
-                    chargerConfigServeur(
-                        interaction.guild.id
-                    );
-
-
-                const types =
-                    Object.entries(
-                        config.tickets.types
-                    );
-
-
-                if (
-                    !types.length
-                ) {
-
-                    await interaction.reply({
-
-                        content:
-                            '❌ Aucun type de ticket disponible sur ce serveur.',
-
-                        flags:
-                            MessageFlags.Ephemeral
-
-                    });
-
-
-                    return;
-
-                }
-
-
-                const options =
-                    types
-                        .slice(
-                            0,
-                            25
-                        )
-                        .map(
-                            ([id, type]) => ({
-
-                                label:
-                                    `${emojiValide(type.emoji)} ${type.name}`
-                                        .slice(
-                                            0,
-                                            100
-                                        ),
-
-                                description:
-                                    (
-                                        type.description ||
-                                        'Demande de support'
-                                    )
-                                        .slice(
-                                            0,
-                                            100
-                                        ),
-
-                                value:
-                                    id
-
-                            })
-                        );
-
-
-                const menu =
-                    new StringSelectMenuBuilder()
-
-                        .setCustomId(
-                            'choix_ticket'
-                        )
-
-                        .setPlaceholder(
-                            'Sélectionne ton type de demande'
-                        )
-
-                        .addOptions(
-                            options
-                        );
-
-
-                await interaction.reply({
-
-                    content:
-                        '🎫 **Quel type de support souhaites-tu contacter ?**',
-
-                    components: [
-
-                        new ActionRowBuilder()
-                            .addComponents(
-                                menu
-                            )
-
-                    ],
-
-                    flags:
-                        MessageFlags.Ephemeral
-
-                });
-
-
-                return;
-
-            }
-
-
-// ======================================================
-// CRÉER TICKET
-// ======================================================
-
-            if (
-                interaction.isStringSelectMenu() &&
-                interaction.customId ===
-                    'choix_ticket'
             ) {
 
                 const typeId =
@@ -6268,7 +5325,7 @@ client.on(
                     await interaction.update({
 
                         content:
-                            '❌ Ce type n’existe plus.',
+                            '❌ Type introuvable.',
 
                         components:
                             []
@@ -6281,19 +5338,895 @@ client.on(
                 }
 
 
+                delete config.tickets.types[
+                    typeId
+                ];
+
+
+                sauvegarderConfigServeur(
+                    interaction.guild.id,
+                    config
+                );
+
+
+                await interaction.update({
+
+                    content:
+                        `✅ ${emojiValide(type.emoji)} **${type.name}** supprimé.`,
+
+                    components:
+                        []
+
+                });
+
+
+                return;
+
+            }
+
+            // ==================================================
+            // MODIFIER STYLE DU PANNEAU PUBLIC
+            // ==================================================
+
+            if (
+                interaction.isButton() &&
+                interaction.customId ===
+                    'ticket_panel_style'
+            ) {
+
+                const config =
+                    chargerConfigServeur(
+                        interaction.guild.id
+                    );
+
+
+                const modal =
+                    new ModalBuilder()
+
+                        .setCustomId(
+                            'modal_ticket_panel_style'
+                        )
+
+                        .setTitle(
+                            'Style du panneau tickets'
+                        );
+
+
+                const titre =
+                    new TextInputBuilder()
+
+                        .setCustomId(
+                            'ticket_panel_title'
+                        )
+
+                        .setLabel(
+                            'Titre'
+                        )
+
+                        .setValue(
+                            config.tickets.panel.title ||
+                            ''
+                        )
+
+                        .setStyle(
+                            TextInputStyle.Short
+                        )
+
+                        .setRequired(
+                            true
+                        )
+
+                        .setMaxLength(
+                            256
+                        );
+
+
+                const description =
+                    new TextInputBuilder()
+
+                        .setCustomId(
+                            'ticket_panel_description'
+                        )
+
+                        .setLabel(
+                            'Description'
+                        )
+
+                        .setValue(
+                            config.tickets.panel.description ||
+                            ''
+                        )
+
+                        .setStyle(
+                            TextInputStyle.Paragraph
+                        )
+
+                        .setRequired(
+                            true
+                        )
+
+                        .setMaxLength(
+                            2000
+                        );
+
+
+                const bouton =
+                    new TextInputBuilder()
+
+                        .setCustomId(
+                            'ticket_panel_button'
+                        )
+
+                        .setLabel(
+                            'Texte du bouton'
+                        )
+
+                        .setValue(
+                            config.tickets.panel.buttonLabel ||
+                            'Ouvrir un ticket'
+                        )
+
+                        .setStyle(
+                            TextInputStyle.Short
+                        )
+
+                        .setRequired(
+                            true
+                        )
+
+                        .setMaxLength(
+                            80
+                        );
+
+
+                const couleur =
+                    new TextInputBuilder()
+
+                        .setCustomId(
+                            'ticket_panel_color'
+                        )
+
+                        .setLabel(
+                            'Couleur HEX'
+                        )
+
+                        .setPlaceholder(
+                            '#F47B20'
+                        )
+
+                        .setValue(
+                            config.tickets.panel.color ||
+                            '#F47B20'
+                        )
+
+                        .setStyle(
+                            TextInputStyle.Short
+                        )
+
+                        .setRequired(
+                            true
+                        )
+
+                        .setMaxLength(
+                            7
+                        );
+
+
+                const footer =
+                    new TextInputBuilder()
+
+                        .setCustomId(
+                            'ticket_panel_footer'
+                        )
+
+                        .setLabel(
+                            'Footer'
+                        )
+
+                        .setValue(
+                            config.tickets.panel.footer ||
+                            ''
+                        )
+
+                        .setStyle(
+                            TextInputStyle.Short
+                        )
+
+                        .setRequired(
+                            false
+                        )
+
+                        .setMaxLength(
+                            2048
+                        );
+
+
+                modal.addComponents(
+
+                    new ActionRowBuilder()
+                        .addComponents(
+                            titre
+                        ),
+
+                    new ActionRowBuilder()
+                        .addComponents(
+                            description
+                        ),
+
+                    new ActionRowBuilder()
+                        .addComponents(
+                            bouton
+                        ),
+
+                    new ActionRowBuilder()
+                        .addComponents(
+                            couleur
+                        ),
+
+                    new ActionRowBuilder()
+                        .addComponents(
+                            footer
+                        )
+
+                );
+
+
+                await interaction.showModal(
+                    modal
+                );
+
+
+                return;
+
+            }
+
+
+            // ==================================================
+            // SAUVEGARDER STYLE DU PANNEAU PUBLIC
+            // ==================================================
+
+            if (
+                interaction.isModalSubmit() &&
+                interaction.customId ===
+                    'modal_ticket_panel_style'
+            ) {
+
+                const config =
+                    chargerConfigServeur(
+                        interaction.guild.id
+                    );
+
+
+                config.tickets.panel.title =
+                    interaction.fields
+                        .getTextInputValue(
+                            'ticket_panel_title'
+                        )
+                        .trim();
+
+
+                config.tickets.panel.description =
+                    interaction.fields
+                        .getTextInputValue(
+                            'ticket_panel_description'
+                        )
+                        .trim();
+
+
+                config.tickets.panel.buttonLabel =
+                    interaction.fields
+                        .getTextInputValue(
+                            'ticket_panel_button'
+                        )
+                        .trim();
+
+
+                config.tickets.panel.color =
+                    couleurValide(
+
+                        interaction.fields
+                            .getTextInputValue(
+                                'ticket_panel_color'
+                            )
+                            .trim(),
+
+                        '#F47B20'
+
+                    );
+
+
+                config.tickets.panel.footer =
+                    interaction.fields
+                        .getTextInputValue(
+                            'ticket_panel_footer'
+                        )
+                        .trim();
+
+
+                sauvegarderConfigServeur(
+                    interaction.guild.id,
+                    config
+                );
+
+
+                await interaction.reply({
+
+                    content:
+                        '✅ Style du panneau public enregistré.',
+
+                    flags:
+                        MessageFlags.Ephemeral
+
+                });
+
+
+                return;
+
+            }
+
+
+            // ==================================================
+            // MODIFIER STYLE DE L'EMBED INTERNE DU TICKET
+            // ==================================================
+
+            if (
+                interaction.isButton() &&
+                interaction.customId ===
+                    'ticket_embed_style'
+            ) {
+
+                const config =
+                    chargerConfigServeur(
+                        interaction.guild.id
+                    );
+
+
+                const modal =
+                    new ModalBuilder()
+
+                        .setCustomId(
+                            'modal_ticket_embed_style'
+                        )
+
+                        .setTitle(
+                            'Style du ticket'
+                        );
+
+
+                const titre =
+                    new TextInputBuilder()
+
+                        .setCustomId(
+                            'ticket_embed_title'
+                        )
+
+                        .setLabel(
+                            'Titre'
+                        )
+
+                        .setPlaceholder(
+                            '{emoji} TICKET // {type}'
+                        )
+
+                        .setValue(
+                            config.tickets.ticketEmbed.title ||
+                            ''
+                        )
+
+                        .setStyle(
+                            TextInputStyle.Short
+                        )
+
+                        .setRequired(
+                            true
+                        )
+
+                        .setMaxLength(
+                            256
+                        );
+
+
+                const description =
+                    new TextInputBuilder()
+
+                        .setCustomId(
+                            'ticket_embed_description'
+                        )
+
+                        .setLabel(
+                            'Description'
+                        )
+
+                        .setValue(
+                            config.tickets.ticketEmbed.description ||
+                            ''
+                        )
+
+                        .setStyle(
+                            TextInputStyle.Paragraph
+                        )
+
+                        .setRequired(
+                            true
+                        )
+
+                        .setMaxLength(
+                            3000
+                        );
+
+
+                const couleur =
+                    new TextInputBuilder()
+
+                        .setCustomId(
+                            'ticket_embed_color'
+                        )
+
+                        .setLabel(
+                            'Couleur HEX'
+                        )
+
+                        .setValue(
+                            config.tickets.ticketEmbed.color ||
+                            '#F47B20'
+                        )
+
+                        .setStyle(
+                            TextInputStyle.Short
+                        )
+
+                        .setRequired(
+                            true
+                        )
+
+                        .setMaxLength(
+                            7
+                        );
+
+
+                const footer =
+                    new TextInputBuilder()
+
+                        .setCustomId(
+                            'ticket_embed_footer'
+                        )
+
+                        .setLabel(
+                            'Footer'
+                        )
+
+                        .setValue(
+                            config.tickets.ticketEmbed.footer ||
+                            ''
+                        )
+
+                        .setStyle(
+                            TextInputStyle.Short
+                        )
+
+                        .setRequired(
+                            false
+                        )
+
+                        .setMaxLength(
+                            2048
+                        );
+
+
+                modal.addComponents(
+
+                    new ActionRowBuilder()
+                        .addComponents(
+                            titre
+                        ),
+
+                    new ActionRowBuilder()
+                        .addComponents(
+                            description
+                        ),
+
+                    new ActionRowBuilder()
+                        .addComponents(
+                            couleur
+                        ),
+
+                    new ActionRowBuilder()
+                        .addComponents(
+                            footer
+                        )
+
+                );
+
+
+                await interaction.showModal(
+                    modal
+                );
+
+
+                return;
+
+            }
+
+
+            // ==================================================
+            // SAUVEGARDER STYLE EMBED INTERNE
+            // ==================================================
+
+            if (
+                interaction.isModalSubmit() &&
+                interaction.customId ===
+                    'modal_ticket_embed_style'
+            ) {
+
+                const config =
+                    chargerConfigServeur(
+                        interaction.guild.id
+                    );
+
+
+                config.tickets.ticketEmbed.title =
+                    interaction.fields
+                        .getTextInputValue(
+                            'ticket_embed_title'
+                        )
+                        .trim();
+
+
+                config.tickets.ticketEmbed.description =
+                    interaction.fields
+                        .getTextInputValue(
+                            'ticket_embed_description'
+                        )
+                        .trim();
+
+
+                config.tickets.ticketEmbed.color =
+                    couleurValide(
+
+                        interaction.fields
+                            .getTextInputValue(
+                                'ticket_embed_color'
+                            )
+                            .trim(),
+
+                        '#F47B20'
+
+                    );
+
+
+                config.tickets.ticketEmbed.footer =
+                    interaction.fields
+                        .getTextInputValue(
+                            'ticket_embed_footer'
+                        )
+                        .trim();
+
+
+                sauvegarderConfigServeur(
+                    interaction.guild.id,
+                    config
+                );
+
+
+                await interaction.reply({
+
+                    content:
+                        '✅ Style de l’embed interne enregistré.',
+
+                    flags:
+                        MessageFlags.Ephemeral
+
+                });
+
+
+                return;
+
+            }
+
+
+            // ==================================================
+            // /TICKET-PANEL
+            // ==================================================
+
+            if (
+                interaction.isChatInputCommand() &&
+                interaction.commandName ===
+                    'ticket-panel'
+            ) {
+
+                const config =
+                    chargerConfigServeur(
+                        interaction.guild.id
+                    );
+
+
+                const types =
+                    Object.values(
+                        config.tickets.types ||
+                        {}
+                    );
+
+
                 if (
-                    !config.tickets.staffRoleId
+                    !types.length
                 ) {
 
-                    await interaction.update({
+                    await interaction.reply({
 
                         content:
-                            '❌ Aucun rôle Staff configuré sur ce serveur.',
+                            '❌ Aucun type de ticket n’est configuré.\nConfigure d’abord les types depuis `/bot-panel`.',
 
-                        components:
-                            []
+                        flags:
+                            MessageFlags.Ephemeral
 
                     });
+
+
+                    return;
+
+                }
+
+
+                const embed =
+                    new EmbedBuilder()
+
+                        .setColor(
+                            couleurValide(
+                                config.tickets.panel.color,
+                                '#F47B20'
+                            )
+                        )
+
+                        .setTitle(
+                            config.tickets.panel.title ||
+                            '🎫 SUPPORT'
+                        )
+
+                        .setDescription(
+                            config.tickets.panel.description ||
+                            'Clique sur le bouton pour ouvrir un ticket.'
+                        );
+
+
+                if (
+                    config.tickets.panel.footer
+                ) {
+
+                    embed.setFooter({
+
+                        text:
+                            config.tickets.panel.footer
+
+                    });
+
+                }
+
+
+                appliquerBanniereEmbed(
+                    embed,
+                    interaction.guild
+                );
+
+
+                const bouton =
+                    new ButtonBuilder()
+
+                        .setCustomId(
+                            'ticket_open'
+                        )
+
+                        .setLabel(
+                            config.tickets.panel.buttonLabel ||
+                            'Ouvrir un ticket'
+                        )
+
+                        .setEmoji(
+                            '🎫'
+                        )
+
+                        .setStyle(
+                            ButtonStyle.Primary
+                        );
+
+
+                // IMPORTANT :
+                // Les boutons interactifs du système ticket
+                // sont envoyés directement par le BOT.
+                await interaction.channel.send({
+
+                    embeds: [
+                        embed
+                    ],
+
+                    components: [
+
+                        new ActionRowBuilder()
+                            .addComponents(
+                                bouton
+                            )
+
+                    ]
+
+                });
+
+
+                await interaction.reply({
+
+                    content:
+                        '✅ Panneau ticket créé dans ce salon.',
+
+                    flags:
+                        MessageFlags.Ephemeral
+
+                });
+
+
+                return;
+
+            }
+
+
+            // ==================================================
+            // BOUTON OUVRIR UN TICKET
+            // ==================================================
+
+            if (
+                interaction.isButton() &&
+                interaction.customId ===
+                    'ticket_open'
+            ) {
+
+                const config =
+                    chargerConfigServeur(
+                        interaction.guild.id
+                    );
+
+
+                const types =
+                    Object.entries(
+                        config.tickets.types ||
+                        {}
+                    );
+
+
+                if (
+                    !types.length
+                ) {
+
+                    await interaction.reply({
+
+                        content:
+                            '❌ Aucun type de ticket disponible.',
+
+                        flags:
+                            MessageFlags.Ephemeral
+
+                    });
+
+
+                    return;
+
+                }
+
+
+                const menu =
+                    new StringSelectMenuBuilder()
+
+                        .setCustomId(
+                            'ticket_type_select'
+                        )
+
+                        .setPlaceholder(
+                            'Choisis le type de ticket'
+                        )
+
+                        .setMinValues(
+                            1
+                        )
+
+                        .setMaxValues(
+                            1
+                        );
+
+
+                for (
+                    const [typeId, type]
+                    of types.slice(
+                        0,
+                        25
+                    )
+                ) {
+
+                    menu.addOptions({
+
+                        label:
+                            `${emojiValide(type.emoji)} ${type.name}`
+                                .slice(
+                                    0,
+                                    100
+                                ),
+
+                        value:
+                            typeId,
+
+                        description:
+                            `Ouvrir un ticket ${type.name}`
+                                .slice(
+                                    0,
+                                    100
+                                )
+
+                    });
+
+                }
+
+
+                await interaction.reply({
+
+                    content:
+                        '📂 Choisis le type de ticket que tu souhaites ouvrir :',
+
+                    components: [
+
+                        new ActionRowBuilder()
+                            .addComponents(
+                                menu
+                            )
+
+                    ],
+
+                    flags:
+                        MessageFlags.Ephemeral
+
+                });
+
+
+                return;
+
+            }
+
+
+            // ==================================================
+            // CRÉER LE SALON DU TICKET
+            // ==================================================
+
+            if (
+                interaction.isStringSelectMenu() &&
+                interaction.customId ===
+                    'ticket_type_select'
+            ) {
+
+                await interaction.deferReply({
+
+                    flags:
+                        MessageFlags.Ephemeral
+
+                });
+
+
+                const config =
+                    chargerConfigServeur(
+                        interaction.guild.id
+                    );
+
+
+                const typeId =
+                    interaction.values[0];
+
+
+                const type =
+                    config.tickets.types[
+                        typeId
+                    ];
+
+
+                if (
+                    !type
+                ) {
+
+                    await interaction.editReply(
+                        '❌ Type de ticket introuvable.'
+                    );
 
 
                     return;
@@ -6305,15 +6238,9 @@ client.on(
                     !type.categoryId
                 ) {
 
-                    await interaction.update({
-
-                        content:
-                            `❌ Aucune catégorie configurée pour **${type.name}**.`,
-
-                        components:
-                            []
-
-                    });
+                    await interaction.editReply(
+                        '❌ Aucune catégorie n’est configurée pour ce type de ticket.'
+                    );
 
 
                     return;
@@ -6321,29 +6248,31 @@ client.on(
                 }
 
 
+                // --------------------------------------------------
+                // Vérifier si l'utilisateur possède déjà un ticket
+                // --------------------------------------------------
+
                 const ticketExistant =
-                    interaction.guild.channels.cache
-                        .find(
-                            channel =>
-                                channel.topic?.includes(
-                                    `ticket-owner:${interaction.user.id}`
-                                )
-                        );
+                    interaction.guild.channels.cache.find(
+
+                        channel =>
+                            channel.type ===
+                                ChannelType.GuildText &&
+
+                            channel.topic?.includes(
+                                `ticket-owner:${interaction.user.id}`
+                            )
+
+                    );
 
 
                 if (
                     ticketExistant
                 ) {
 
-                    await interaction.update({
-
-                        content:
-                            `❌ Tu as déjà un ticket ouvert sur ce serveur : ${ticketExistant}`,
-
-                        components:
-                            []
-
-                    });
+                    await interaction.editReply(
+                        `❌ Tu possèdes déjà un ticket ouvert : ${ticketExistant}`
+                    );
 
 
                     return;
@@ -6351,112 +6280,212 @@ client.on(
                 }
 
 
-                const pseudo =
+                // --------------------------------------------------
+                // Vérifier catégorie
+                // --------------------------------------------------
+
+                const categorie =
+
+                    interaction.guild.channels.cache.get(
+                        type.categoryId
+                    )
+
+                    ||
+
+                    await interaction.guild.channels.fetch(
+                        type.categoryId
+                    )
+                        .catch(
+                            () => null
+                        );
+
+
+                if (
+                    !categorie ||
+                    categorie.type !==
+                        ChannelType.GuildCategory
+                ) {
+
+                    await interaction.editReply(
+                        '❌ La catégorie configurée pour ce type de ticket est introuvable.'
+                    );
+
+
+                    return;
+
+                }
+
+
+                // --------------------------------------------------
+                // Nom du salon
+                // --------------------------------------------------
+
+                const username =
                     creerSlug(
                         interaction.user.username
                     ) ||
                     'membre';
 
 
+                const typeSlug =
+                    creerSlug(
+                        type.name
+                    ) ||
+                    'ticket';
+
+
+                let nomSalon =
+                    `${typeSlug}-${username}`;
+
+
+                nomSalon =
+                    nomSalon.slice(
+                        0,
+                        90
+                    );
+
+
+                // --------------------------------------------------
+                // Permissions du salon
+                // --------------------------------------------------
+
+                const permissions = [
+
+                    {
+                        id:
+                            interaction.guild.roles.everyone.id,
+
+                        deny: [
+                            PermissionFlagsBits.ViewChannel
+                        ]
+                    },
+
+                    {
+                        id:
+                            interaction.user.id,
+
+                        allow: [
+                            PermissionFlagsBits.ViewChannel,
+                            PermissionFlagsBits.SendMessages,
+                            PermissionFlagsBits.ReadMessageHistory,
+                            PermissionFlagsBits.AttachFiles,
+                            PermissionFlagsBits.EmbedLinks
+                        ]
+                    },
+
+                    {
+                        id:
+                            client.user.id,
+
+                        allow: [
+                            PermissionFlagsBits.ViewChannel,
+                            PermissionFlagsBits.SendMessages,
+                            PermissionFlagsBits.ReadMessageHistory,
+                            PermissionFlagsBits.ManageChannels,
+                            PermissionFlagsBits.ManageMessages,
+                            PermissionFlagsBits.AttachFiles,
+                            PermissionFlagsBits.EmbedLinks
+                        ]
+                    }
+
+                ];
+
+
+                if (
+                    config.tickets.staffRoleId
+                ) {
+
+                    permissions.push({
+
+                        id:
+                            config.tickets.staffRoleId,
+
+                        allow: [
+                            PermissionFlagsBits.ViewChannel,
+                            PermissionFlagsBits.SendMessages,
+                            PermissionFlagsBits.ReadMessageHistory,
+                            PermissionFlagsBits.AttachFiles,
+                            PermissionFlagsBits.EmbedLinks
+                        ]
+
+                    });
+
+                }
+
+
+                // --------------------------------------------------
+                // Création du salon
+                // --------------------------------------------------
+
                 const ticketChannel =
                     await interaction.guild.channels.create({
 
                         name:
-                            `ticket-${creerSlug(type.name)}-${pseudo}`,
+                            nomSalon,
 
                         type:
                             ChannelType.GuildText,
 
                         parent:
-                            type.categoryId,
+                            categorie.id,
 
                         topic:
-                            `ticket-owner:${interaction.user.id};ticket-type:${typeId}`,
+                            `ticket-owner:${interaction.user.id} | ticket-type:${typeId}`,
 
-                        permissionOverwrites: [
+                        permissionOverwrites:
+                            permissions,
 
-                            {
-                                id:
-                                    interaction.guild.roles.everyone.id,
-
-                                deny: [
-                                    PermissionFlagsBits.ViewChannel
-                                ]
-                            },
-
-                            {
-                                id:
-                                    interaction.user.id,
-
-                                allow: [
-                                    PermissionFlagsBits.ViewChannel,
-                                    PermissionFlagsBits.SendMessages,
-                                    PermissionFlagsBits.ReadMessageHistory,
-                                    PermissionFlagsBits.AttachFiles,
-                                    PermissionFlagsBits.EmbedLinks
-                                ]
-                            },
-
-                            {
-                                id:
-                                    config.tickets.staffRoleId,
-
-                                allow: [
-                                    PermissionFlagsBits.ViewChannel,
-                                    PermissionFlagsBits.SendMessages,
-                                    PermissionFlagsBits.ReadMessageHistory,
-                                    PermissionFlagsBits.AttachFiles,
-                                    PermissionFlagsBits.EmbedLinks,
-                                    PermissionFlagsBits.ManageMessages
-                                ]
-                            }
-
-                        ]
+                        reason:
+                            `Ticket ouvert par ${interaction.user.tag}`
 
                     });
 
 
-                const e =
-                    config.tickets.ticketEmbed;
-
+                // --------------------------------------------------
+                // Embed interne
+                // --------------------------------------------------
 
                 const embed =
                     new EmbedBuilder()
 
                         .setColor(
                             couleurValide(
-                                e.color,
+                                config.tickets.ticketEmbed.color,
                                 '#F47B20'
                             )
                         )
 
                         .setTitle(
+
                             remplacerVariablesTicket(
-                                e.title,
+                                config.tickets.ticketEmbed.title,
                                 interaction,
                                 type
                             )
+
                         )
 
                         .setDescription(
+
                             remplacerVariablesTicket(
-                                e.description,
+                                config.tickets.ticketEmbed.description,
                                 interaction,
                                 type
                             )
+
                         )
 
                         .setTimestamp();
 
 
                 if (
-                    e.footer
+                    config.tickets.ticketEmbed.footer
                 ) {
 
                     embed.setFooter({
 
                         text:
-                            e.footer
+                            config.tickets.ticketEmbed.footer
 
                     });
 
@@ -6464,7 +6493,7 @@ client.on(
 
 
                 if (
-                    e.showAvatar
+                    config.tickets.ticketEmbed.showAvatar
                 ) {
 
                     embed.setThumbnail(
@@ -6484,55 +6513,70 @@ client.on(
                 }
 
 
+                // --------------------------------------------------
+                // Boutons Claim / Fermer
+                // --------------------------------------------------
+
+                const boutonClaim =
+                    new ButtonBuilder()
+
+                        .setCustomId(
+                            'ticket_claim'
+                        )
+
+                        .setLabel(
+                            'Prendre en charge'
+                        )
+
+                        .setEmoji(
+                            '🙋'
+                        )
+
+                        .setStyle(
+                            ButtonStyle.Success
+                        );
+
+
+                const boutonClose =
+                    new ButtonBuilder()
+
+                        .setCustomId(
+                            'ticket_close'
+                        )
+
+                        .setLabel(
+                            'Fermer'
+                        )
+
+                        .setEmoji(
+                            '🔒'
+                        )
+
+                        .setStyle(
+                            ButtonStyle.Danger
+                        );
+
+
                 const boutons =
                     new ActionRowBuilder()
 
                         .addComponents(
-
-                            new ButtonBuilder()
-
-                                .setCustomId(
-                                    'ticket_claim'
-                                )
-
-                                .setLabel(
-                                    'Prendre en charge'
-                                )
-
-                                .setEmoji(
-                                    '🙋'
-                                )
-
-                                .setStyle(
-                                    ButtonStyle.Primary
-                                ),
-
-
-                            new ButtonBuilder()
-
-                                .setCustomId(
-                                    'ticket_close'
-                                )
-
-                                .setLabel(
-                                    'Fermer'
-                                )
-
-                                .setEmoji(
-                                    '🔒'
-                                )
-
-                                .setStyle(
-                                    ButtonStyle.Danger
-                                )
-
+                            boutonClaim,
+                            boutonClose
                         );
 
 
+                // IMPORTANT :
+                // Ce message contient des boutons.
+                // Il est donc envoyé DIRECTEMENT par le bot.
                 await ticketChannel.send({
 
                     content:
-                        `${interaction.user} <@&${config.tickets.staffRoleId}>`,
+                        config.tickets.staffRoleId
+
+                            ? `${interaction.user} <@&${config.tickets.staffRoleId}>`
+
+                            : `${interaction.user}`,
 
                     embeds: [
                         embed
@@ -6540,97 +6584,40 @@ client.on(
 
                     components: [
                         boutons
-                    ]
+                    ],
+
+                    allowedMentions: {
+
+                        users: [
+                            interaction.user.id
+                        ],
+
+                        roles:
+                            config.tickets.staffRoleId
+
+                                ? [
+                                    config.tickets.staffRoleId
+                                ]
+
+                                : []
+
+                    }
 
                 });
 
 
-                await interaction.update({
-
-                    content:
-                        `✅ Ton ticket a été créé : ${ticketChannel}`,
-
-                    components:
-                        []
-
-                });
-
-
-                const logs =
-                    interaction.guild.channels.cache.get(
-                        config.tickets.logsChannelId
-                    );
-
-
-                if (
-                    logs
-                ) {
-
-                    await logs.send({
-
-                        embeds: [
-
-                            new EmbedBuilder()
-
-                                .setColor(
-                                    '#57F287'
-                                )
-
-                                .setTitle(
-                                    '🎫 Ticket ouvert'
-                                )
-
-                                .addFields(
-
-                                    {
-                                        name:
-                                            'Membre',
-
-                                        value:
-                                            `${interaction.user}`,
-
-                                        inline:
-                                            true
-                                    },
-
-                                    {
-                                        name:
-                                            'Type',
-
-                                        value:
-                                            `${emojiValide(type.emoji)} ${type.name}`,
-
-                                        inline:
-                                            true
-                                    },
-
-                                    {
-                                        name:
-                                            'Salon',
-
-                                        value:
-                                            `${ticketChannel}`
-                                    }
-
-                                )
-
-                                .setTimestamp()
-
-                        ]
-
-                    });
-
-                }
+                await interaction.editReply(
+                    `✅ Ton ticket a été créé : ${ticketChannel}`
+                );
 
 
                 return;
 
             }
 
-
-// ======================================================
+// ==================================================
 // CLAIM TICKET
-// ======================================================
+// ==================================================
 
             if (
                 interaction.isButton() &&
@@ -6644,16 +6631,25 @@ client.on(
                     );
 
 
+                // --------------------------------------------------
+                // Vérifier que c'est bien un ticket
+                // --------------------------------------------------
+
+                const topic =
+                    interaction.channel.topic ||
+                    '';
+
+
                 if (
-                    !interaction.member.roles.cache.has(
-                        config.tickets.staffRoleId
+                    !topic.includes(
+                        'ticket-owner:'
                     )
                 ) {
 
                     await interaction.reply({
 
                         content:
-                            '❌ Seul le Staff de ce serveur peut prendre en charge ce ticket.',
+                            '❌ Ce salon n’est pas reconnu comme un ticket.',
 
                         flags:
                             MessageFlags.Ephemeral
@@ -6666,21 +6662,48 @@ client.on(
                 }
 
 
-                const claim =
-                    interaction.channel.topic
-                        ?.match(
-                            /ticket-claim:(\d+)/
-                        );
+                // --------------------------------------------------
+                // Vérifier si l'utilisateur est autorisé
+                // --------------------------------------------------
+
+                const membre =
+                    interaction.member;
+
+
+                const estAdmin =
+                    membre.permissions.has(
+                        PermissionFlagsBits.Administrator
+                    );
+
+
+                const aRoleStaff =
+                    config.tickets.staffRoleId
+
+                        ? membre.roles.cache.has(
+                            config.tickets.staffRoleId
+                        )
+
+                        : false;
+
+
+                const estStaffConfigure =
+                    Boolean(
+                        config.tickets.staffMembers[
+                            interaction.user.id
+                        ]
+                    );
 
 
                 if (
-                    claim
+                    !estAdmin &&
+                    !aRoleStaff &&
+                    !estStaffConfigure
                 ) {
 
                     await interaction.reply({
 
                         content:
-                            `❌ Ce ticket est déjà pris en charge par <@${claim[1]}>.`,
+                            '❌ Tu ne fais pas partie du Staff Tickets.',
 
                         flags:
                             MessageFlags.Ephemeral
@@ -6693,14 +6716,82 @@ client.on(
                 }
 
 
+                // --------------------------------------------------
+                // Déjà claim ?
+                // --------------------------------------------------
+
+                const matchClaim =
+                    topic.match(
+                        /ticket-claim:(\d+)/
+                    );
+
+
+                if (
+                    matchClaim
+                ) {
+
+                    const claimId =
+                        matchClaim[1];
+
+
+                    if (
+                        claimId ===
+                        interaction.user.id
+                    ) {
+
+                        await interaction.reply({
+
+                            content:
+                                'ℹ️ Tu as déjà pris en charge ce ticket.',
+
+                            flags:
+                                MessageFlags.Ephemeral
+
+                        });
+
+                    }
+
+                    else {
+
+                        await interaction.reply({
+
+                            content:
+                                `❌ Ce ticket est déjà pris en charge par <@${claimId}>.`,
+
+                            flags:
+                                MessageFlags.Ephemeral
+
+                        });
+
+                    }
+
+
+                    return;
+
+                }
+
+
+                // --------------------------------------------------
+                // Ajouter le claim dans le topic
+                // --------------------------------------------------
+
+                const nouveauTopic =
+                    `${topic} | ticket-claim:${interaction.user.id}`;
+
+
                 await interaction.channel.setTopic(
-
-                    `${interaction.channel.topic || ''};ticket-claim:${interaction.user.id}`
-
+                    nouveauTopic.slice(
+                        0,
+                        1024
+                    )
                 );
 
 
-                const emoji =
+                // --------------------------------------------------
+                // Emoji personnalisé du Staff
+                // --------------------------------------------------
+
+                const emojiStaff =
                     emojiStaffValide(
 
                         config.tickets.staffMembers[
@@ -6710,52 +6801,84 @@ client.on(
                     );
 
 
-                try {
+                // --------------------------------------------------
+                // Renommer le salon
+                // --------------------------------------------------
 
-                    if (
-                        !interaction.channel.name
-                            .startsWith(
-                                `${emoji}-`
-                            )
-                    ) {
+                const nomActuel =
+                    interaction.channel.name;
 
-                        await interaction.channel.setName(
 
-                            `${emoji}-${interaction.channel.name}`
-
-                        );
-
-                    }
-
-                }
-
-                catch (error) {
-
-                    console.error(
-                        '⚠️ Impossible de renommer le ticket :',
-                        error
+                const prefix =
+                    creerSlug(
+                        emojiStaff
                     );
 
+
+                // Les emojis Unicode ne passent pas dans les noms
+                // Discord, donc on utilise "claim" dans le nom.
+                if (
+                    !nomActuel.startsWith(
+                        'claim-'
+                    )
+                ) {
+
+                    await interaction.channel.setName(
+
+                        `claim-${nomActuel}`
+                            .slice(
+                                0,
+                                100
+                            )
+
+                    )
+                        .catch(
+                            () => {}
+                        );
+
                 }
+
+
+                // --------------------------------------------------
+                // Message de prise en charge
+                // --------------------------------------------------
+
+                const embed =
+                    new EmbedBuilder()
+
+                        .setColor(
+                            '#57F287'
+                        )
+
+                        .setTitle(
+                            `${emojiStaff} Ticket pris en charge`
+                        )
+
+                        .setDescription(
+                            `${interaction.user} a pris en charge ce ticket.`
+                        )
+
+                        .setTimestamp();
+
+
+                // IMPORTANT :
+                // message ticket envoyé directement par le bot
+                await interaction.channel.send({
+
+                    embeds: [
+                        embed
+                    ]
+
+                });
 
 
                 await interaction.reply({
 
-                    embeds: [
+                    content:
+                        '✅ Ticket pris en charge.',
 
-                        new EmbedBuilder()
-
-                            .setColor(
-                                '#F47B20'
-                            )
-
-                            .setDescription(
-                                `${emoji} ${interaction.user} a pris en charge ce ticket.`
-                            )
-
-                            .setTimestamp()
-
-                    ]
+                    flags:
+                        MessageFlags.Ephemeral
 
                 });
 
@@ -6765,9 +6888,9 @@ client.on(
             }
 
 
-// ======================================================
+// ==================================================
 // FERMER TICKET
-// ======================================================
+// ==================================================
 
             if (
                 interaction.isButton() &&
@@ -6781,38 +6904,21 @@ client.on(
                     );
 
 
-                const estStaff =
-                    interaction.member.roles.cache.has(
-                        config.tickets.staffRoleId
-                    );
-
-
-                const ownerId =
-                    interaction.channel.topic
-                        ?.match(
-                            /ticket-owner:(\d+)/
-                        )?.[1] ||
-                    null;
-
-
-                const claimStaffId =
-                    interaction.channel.topic
-                        ?.match(
-                            /ticket-claim:(\d+)/
-                        )?.[1] ||
-                    null;
+                const topic =
+                    interaction.channel.topic ||
+                    '';
 
 
                 if (
-                    !estStaff &&
-                    ownerId !==
-                    interaction.user.id
+                    !topic.includes(
+                        'ticket-owner:'
+                    )
                 ) {
 
                     await interaction.reply({
 
                         content:
-                            '❌ Tu ne peux pas fermer ce ticket.',
+                            '❌ Ce salon n’est pas reconnu comme un ticket.',
 
                         flags:
                             MessageFlags.Ephemeral
@@ -6825,10 +6931,61 @@ client.on(
                 }
 
 
-                await interaction.reply({
+                // --------------------------------------------------
+                // Vérifier les droits
+                // --------------------------------------------------
 
-                    content:
-                        '📄 Génération du transcript et fermeture du ticket...',
+                const membre =
+                    interaction.member;
+
+
+                const estAdmin =
+                    membre.permissions.has(
+                        PermissionFlagsBits.Administrator
+                    );
+
+
+                const aRoleStaff =
+                    config.tickets.staffRoleId
+
+                        ? membre.roles.cache.has(
+                            config.tickets.staffRoleId
+                        )
+
+                        : false;
+
+
+                const estStaffConfigure =
+                    Boolean(
+                        config.tickets.staffMembers[
+                            interaction.user.id
+                        ]
+                    );
+
+
+                if (
+                    !estAdmin &&
+                    !aRoleStaff &&
+                    !estStaffConfigure
+                ) {
+
+                    await interaction.reply({
+
+                        content:
+                            '❌ Seul le Staff peut fermer ce ticket.',
+
+                        flags:
+                            MessageFlags.Ephemeral
+
+                    });
+
+
+                    return;
+
+                }
+
+
+                await interaction.deferReply({
 
                     flags:
                         MessageFlags.Ephemeral
@@ -6836,14 +6993,32 @@ client.on(
                 });
 
 
-                const transcript =
-                    await genererTranscript(
-                        interaction.channel
+                // --------------------------------------------------
+                // Récupérer propriétaire / claim
+                // --------------------------------------------------
+
+                const matchOwner =
+                    topic.match(
+                        /ticket-owner:(\d+)/
                     );
 
 
-                const nomFichier =
-                    `transcript-${interaction.channel.name}.txt`;
+                const matchClaim =
+                    topic.match(
+                        /ticket-claim:(\d+)/
+                    );
+
+
+                const ownerId =
+                    matchOwner
+                        ? matchOwner[1]
+                        : null;
+
+
+                const claimStaffId =
+                    matchClaim
+                        ? matchClaim[1]
+                        : null;
 
 
                 let proprietaire =
@@ -6854,140 +7029,225 @@ client.on(
                     ownerId
                 ) {
 
-                    try {
-
-                        proprietaire =
-                            await client.users.fetch(
-                                ownerId
+                    proprietaire =
+                        await client.users.fetch(
+                            ownerId
+                        )
+                            .catch(
+                                () => null
                             );
-
-                    }
-
-                    catch (_) {}
 
                 }
 
 
-                const salonLogs =
-                    interaction.guild.channels.cache.get(
-                        config.tickets.logsChannelId
+                // --------------------------------------------------
+                // Générer transcript
+                // --------------------------------------------------
+
+                let transcript;
+
+
+                try {
+
+                    transcript =
+                        await genererTranscript(
+                            interaction.channel
+                        );
+
+                }
+
+                catch (error) {
+
+                    console.error(
+                        '❌ Erreur génération transcript :',
+                        error
                     );
 
 
-                if (
-                    salonLogs
-                ) {
-
-                    const logEmbed =
-                        new EmbedBuilder()
-
-                            .setColor(
-                                '#ED4245'
-                            )
-
-                            .setTitle(
-                                '🔒 Ticket fermé'
-                            )
-
-                            .setDescription(
-                                'Le transcript complet du ticket est disponible ci-dessous.'
-                            )
-
-                            .addFields(
-
-                                {
-                                    name:
-                                        '🎫 Ticket',
-
-                                    value:
-                                        `#${interaction.channel.name}`,
-
-                                    inline:
-                                        true
-                                },
-
-                                {
-                                    name:
-                                        '👤 Ouvert par',
-
-                                    value:
-                                        proprietaire
-                                            ? `<@${proprietaire.id}>`
-                                            : 'Inconnu',
-
-                                    inline:
-                                        true
-                                },
-
-                                {
-                                    name:
-                                        '🙋 Pris en charge par',
-
-                                    value:
-                                        claimStaffId
-                                            ? `<@${claimStaffId}>`
-                                            : '❌ Non pris en charge',
-
-                                    inline:
-                                        true
-                                },
-
-                                {
-                                    name:
-                                        '🔒 Fermé par',
-
-                                    value:
-                                        `${interaction.user}`,
-
-                                    inline:
-                                        true
-                                },
-
-                                {
-                                    name:
-                                        '💬 Messages',
-
-                                    value:
-                                        `${transcript.messageCount}`,
-
-                                    inline:
-                                        true
-                                }
-
-                            )
-
-                            .setTimestamp();
+                    await interaction.editReply(
+                        '❌ Impossible de générer le transcript.'
+                    );
 
 
-                    await salonLogs.send({
-
-                        embeds: [
-                            logEmbed
-                        ],
-
-                        files: [
-
-                            new AttachmentBuilder(
-
-                                transcript.buffer,
-
-                                {
-                                    name:
-                                        nomFichier
-                                }
-
-                            )
-
-                        ]
-
-                    });
+                    return;
 
                 }
 
 
-// ======================================================
-// DM TRANSCRIPT
-// ======================================================
+                const nomFichier =
+                    `transcript-${interaction.channel.name}-${Date.now()}.txt`;
+
+
+// ==================================================
+// LOG DU TICKET
+// ==================================================
+
+                const salonLogs =
+
+                    config.tickets.logsChannelId
+
+                        ? (
+                            interaction.guild.channels.cache.get(
+                                config.tickets.logsChannelId
+                            )
+
+                            ||
+
+                            await interaction.guild.channels.fetch(
+                                config.tickets.logsChannelId
+                            )
+                                .catch(
+                                    () => null
+                                )
+                        )
+
+                        : null;
+
+
+                if (
+                    salonLogs &&
+                    salonLogs.isTextBased()
+                ) {
+
+                    try {
+
+                        const logEmbed =
+                            new EmbedBuilder()
+
+                                .setColor(
+                                    '#ED4245'
+                                )
+
+                                .setTitle(
+                                    '🔒 Ticket fermé'
+                                )
+
+                                .addFields(
+
+                                    {
+                                        name:
+                                            '🎫 Salon',
+
+                                        value:
+                                            `#${interaction.channel.name}`,
+
+                                        inline:
+                                            true
+                                    },
+
+                                    {
+                                        name:
+                                            '👤 Propriétaire',
+
+                                        value:
+                                            ownerId
+                                                ? `<@${ownerId}>`
+                                                : 'Inconnu',
+
+                                        inline:
+                                            true
+                                    },
+
+                                    {
+                                        name:
+                                            '🙋 Pris en charge par',
+
+                                        value:
+                                            claimStaffId
+                                                ? `<@${claimStaffId}>`
+                                                : 'Non pris en charge',
+
+                                        inline:
+                                            true
+                                    },
+
+                                    {
+                                        name:
+                                            '🔒 Fermé par',
+
+                                        value:
+                                            `${interaction.user}`,
+
+                                        inline:
+                                            true
+                                    },
+
+                                    {
+                                        name:
+                                            '💬 Messages',
+
+                                        value:
+                                            `${transcript.messageCount}`,
+
+                                        inline:
+                                            true
+                                    },
+
+                                    {
+                                        name:
+                                            '🕒 Fermeture',
+
+                                        value:
+                                            `<t:${Math.floor(Date.now() / 1000)}:F>`,
+
+                                        inline:
+                                            false
+                                    }
+
+                                )
+
+                                .setFooter({
+
+                                    text:
+                                        `${interaction.guild.name} • Logs Tickets`
+
+                                })
+
+                                .setTimestamp();
+
+
+                        // IMPORTANT :
+                        // logs tickets envoyés directement par le bot
+                        await salonLogs.send({
+
+                            embeds: [
+                                logEmbed
+                            ],
+
+                            files: [
+
+                                new AttachmentBuilder(
+
+                                    transcript.buffer,
+
+                                    {
+                                        name:
+                                            nomFichier
+                                    }
+
+                                )
+
+                            ]
+
+                        });
+
+                    }
+
+                    catch (error) {
+
+                        console.error(
+                            '❌ Impossible d’envoyer le log du ticket :',
+                            error
+                        );
+
+                    }
+
+                }
+
+
+// ==================================================
+// DM TRANSCRIPT AU PROPRIÉTAIRE
+// ==================================================
 
                 let dmEnvoye =
                     false;
@@ -7055,6 +7315,23 @@ client.on(
                                 .setTimestamp();
 
 
+                        const configApparence =
+                            chargerConfigServeur(
+                                interaction.guild.id
+                            );
+
+
+                        if (
+                            configApparence.appearance.bannerUrl
+                        ) {
+
+                            dmEmbed.setImage(
+                                configApparence.appearance.bannerUrl
+                            );
+
+                        }
+
+
                         await proprietaire.send({
 
                             embeds: [
@@ -7084,14 +7361,25 @@ client.on(
 
                     }
 
-                    catch (_) {}
+                    catch (error) {
+
+                        console.log(
+                            `⚠️ DM transcript impossible pour ${ownerId || 'inconnu'}`
+                        );
+
+                    }
 
                 }
 
 
+// ==================================================
+// AVERTIR DANS LES LOGS SI DM IMPOSSIBLE
+// ==================================================
+
                 if (
                     !dmEnvoye &&
-                    salonLogs
+                    salonLogs &&
+                    salonLogs.isTextBased()
                 ) {
 
                     await salonLogs.send({
@@ -7103,10 +7391,17 @@ client.on(
                                     : 'l’utilisateur'
                             }.`
 
-                    });
+                    })
+                        .catch(
+                            () => {}
+                        );
 
                 }
 
+
+// ==================================================
+// MESSAGE FINAL DANS LE TICKET
+// ==================================================
 
                 await interaction.channel.send({
 
@@ -7115,20 +7410,43 @@ client.on(
                         '📄 Le transcript a été sauvegardé.\n' +
                         '🗑️ Suppression du salon dans **5 secondes**...'
 
-                });
+                })
+                    .catch(
+                        () => {}
+                    );
 
+
+                await interaction.editReply(
+                    '✅ Ticket fermé.'
+                );
+
+
+// ==================================================
+// SUPPRESSION DU SALON
+// ==================================================
 
                 setTimeout(
 
-                    () =>
+                    async () => {
 
-                        interaction.channel
-                            .delete(
+                        try {
+
+                            await interaction.channel.delete(
                                 `Ticket fermé par ${interaction.user.tag}`
-                            )
-                            .catch(
-                                console.error
-                            ),
+                            );
+
+                        }
+
+                        catch (error) {
+
+                            console.error(
+                                '❌ Impossible de supprimer le salon ticket :',
+                                error.message
+                            );
+
+                        }
+
+                    },
 
                     5000
 
@@ -7138,6 +7456,1333 @@ client.on(
                 return;
 
             }
+
+// ==================================================
+// PANEL BIENVENUE / DÉPART
+// ==================================================
+
+            if (
+                interaction.isButton() &&
+                interaction.customId ===
+                    'admin_bienvenue'
+            ) {
+
+                const config =
+                    chargerConfigServeur(
+                        interaction.guild.id
+                    );
+
+
+                const ligne1 =
+                    new ActionRowBuilder()
+
+                        .addComponents(
+
+                            new ButtonBuilder()
+
+                                .setCustomId(
+                                    'welcome_toggle'
+                                )
+
+                                .setLabel(
+                                    config.welcome.welcomeEnabled
+                                        ? 'Désactiver arrivées'
+                                        : 'Activer arrivées'
+                                )
+
+                                .setEmoji(
+                                    config.welcome.welcomeEnabled
+                                        ? '🔴'
+                                        : '🟢'
+                                )
+
+                                .setStyle(
+                                    config.welcome.welcomeEnabled
+                                        ? ButtonStyle.Danger
+                                        : ButtonStyle.Success
+                                ),
+
+
+                            new ButtonBuilder()
+
+                                .setCustomId(
+                                    'goodbye_toggle'
+                                )
+
+                                .setLabel(
+                                    config.welcome.goodbyeEnabled
+                                        ? 'Désactiver départs'
+                                        : 'Activer départs'
+                                )
+
+                                .setEmoji(
+                                    config.welcome.goodbyeEnabled
+                                        ? '🔴'
+                                        : '🟢'
+                                )
+
+                                .setStyle(
+                                    config.welcome.goodbyeEnabled
+                                        ? ButtonStyle.Danger
+                                        : ButtonStyle.Success
+                                )
+
+                        );
+
+
+                const ligne2 =
+                    new ActionRowBuilder()
+
+                        .addComponents(
+
+                            new ButtonBuilder()
+
+                                .setCustomId(
+                                    'welcome_channel'
+                                )
+
+                                .setLabel(
+                                    'Salon arrivée'
+                                )
+
+                                .setEmoji(
+                                    '📍'
+                                )
+
+                                .setStyle(
+                                    ButtonStyle.Secondary
+                                ),
+
+
+                            new ButtonBuilder()
+
+                                .setCustomId(
+                                    'goodbye_channel'
+                                )
+
+                                .setLabel(
+                                    'Salon départ'
+                                )
+
+                                .setEmoji(
+                                    '📍'
+                                )
+
+                                .setStyle(
+                                    ButtonStyle.Secondary
+                                )
+
+                        );
+
+
+                const ligne3 =
+                    new ActionRowBuilder()
+
+                        .addComponents(
+
+                            new ButtonBuilder()
+
+                                .setCustomId(
+                                    'welcome_style'
+                                )
+
+                                .setLabel(
+                                    'Message arrivée'
+                                )
+
+                                .setEmoji(
+                                    '🎉'
+                                )
+
+                                .setStyle(
+                                    ButtonStyle.Primary
+                                ),
+
+
+                            new ButtonBuilder()
+
+                                .setCustomId(
+                                    'goodbye_style'
+                                )
+
+                                .setLabel(
+                                    'Message départ'
+                                )
+
+                                .setEmoji(
+                                    '👋'
+                                )
+
+                                .setStyle(
+                                    ButtonStyle.Primary
+                                )
+
+                        );
+
+
+                const ligne4 =
+                    new ActionRowBuilder()
+
+                        .addComponents(
+
+                            new ButtonBuilder()
+
+                                .setCustomId(
+                                    'welcome_avatar_toggle'
+                                )
+
+                                .setLabel(
+                                    'Avatar arrivée'
+                                )
+
+                                .setEmoji(
+                                    '👤'
+                                )
+
+                                .setStyle(
+                                    config.welcome.welcomeShowAvatar
+                                        ? ButtonStyle.Success
+                                        : ButtonStyle.Secondary
+                                ),
+
+
+                            new ButtonBuilder()
+
+                                .setCustomId(
+                                    'goodbye_avatar_toggle'
+                                )
+
+                                .setLabel(
+                                    'Avatar départ'
+                                )
+
+                                .setEmoji(
+                                    '👤'
+                                )
+
+                                .setStyle(
+                                    config.welcome.goodbyeShowAvatar
+                                        ? ButtonStyle.Success
+                                        : ButtonStyle.Secondary
+                                )
+
+                        );
+
+
+                const ligne5 =
+                    new ActionRowBuilder()
+
+                        .addComponents(
+
+                            new ButtonBuilder()
+
+                                .setCustomId(
+                                    'welcome_image'
+                                )
+
+                                .setLabel(
+                                    'Image arrivée'
+                                )
+
+                                .setEmoji(
+                                    '🖼️'
+                                )
+
+                                .setStyle(
+                                    ButtonStyle.Secondary
+                                ),
+
+
+                            new ButtonBuilder()
+
+                                .setCustomId(
+                                    'welcome_image_delete'
+                                )
+
+                                .setLabel(
+                                    'Retirer'
+                                )
+
+                                .setStyle(
+                                    ButtonStyle.Danger
+                                ),
+
+
+                            new ButtonBuilder()
+
+                                .setCustomId(
+                                    'goodbye_image'
+                                )
+
+                                .setLabel(
+                                    'Image départ'
+                                )
+
+                                .setEmoji(
+                                    '🖼️'
+                                )
+
+                                .setStyle(
+                                    ButtonStyle.Secondary
+                                ),
+
+
+                            new ButtonBuilder()
+
+                                .setCustomId(
+                                    'goodbye_image_delete'
+                                )
+
+                                .setLabel(
+                                    'Retirer'
+                                )
+
+                                .setStyle(
+                                    ButtonStyle.Danger
+                                )
+
+                        );
+
+
+                await interaction.update({
+
+                    embeds: [
+
+                        creerEmbedConfigBienvenue(
+                            interaction.guild.id
+                        )
+
+                    ],
+
+                    components: [
+                        ligne1,
+                        ligne2,
+                        ligne3,
+                        ligne4,
+                        ligne5
+                    ]
+
+                });
+
+
+                return;
+
+            }
+
+
+// ==================================================
+// ACTIVER / DÉSACTIVER ARRIVÉES
+// ==================================================
+
+            if (
+                interaction.isButton() &&
+                interaction.customId ===
+                    'welcome_toggle'
+            ) {
+
+                const config =
+                    chargerConfigServeur(
+                        interaction.guild.id
+                    );
+
+
+                config.welcome.welcomeEnabled =
+                    !config.welcome.welcomeEnabled;
+
+
+                sauvegarderConfigServeur(
+                    interaction.guild.id,
+                    config
+                );
+
+
+                await interaction.reply({
+
+                    content:
+                        config.welcome.welcomeEnabled
+                            ? '✅ Messages d’arrivée activés.'
+                            : '❌ Messages d’arrivée désactivés.',
+
+                    flags:
+                        MessageFlags.Ephemeral
+
+                });
+
+
+                return;
+
+            }
+
+
+// ==================================================
+// ACTIVER / DÉSACTIVER DÉPARTS
+// ==================================================
+
+            if (
+                interaction.isButton() &&
+                interaction.customId ===
+                    'goodbye_toggle'
+            ) {
+
+                const config =
+                    chargerConfigServeur(
+                        interaction.guild.id
+                    );
+
+
+                config.welcome.goodbyeEnabled =
+                    !config.welcome.goodbyeEnabled;
+
+
+                sauvegarderConfigServeur(
+                    interaction.guild.id,
+                    config
+                );
+
+
+                await interaction.reply({
+
+                    content:
+                        config.welcome.goodbyeEnabled
+                            ? '✅ Messages de départ activés.'
+                            : '❌ Messages de départ désactivés.',
+
+                    flags:
+                        MessageFlags.Ephemeral
+
+                });
+
+
+                return;
+
+            }
+
+
+// ==================================================
+// CHOISIR SALON ARRIVÉE
+// ==================================================
+
+            if (
+                interaction.isButton() &&
+                interaction.customId ===
+                    'welcome_channel'
+            ) {
+
+                const menu =
+                    new ChannelSelectMenuBuilder()
+
+                        .setCustomId(
+                            'select_welcome_channel'
+                        )
+
+                        .setPlaceholder(
+                            'Choisis le salon d’arrivée'
+                        )
+
+                        .addChannelTypes(
+                            ChannelType.GuildText
+                        )
+
+                        .setMinValues(
+                            1
+                        )
+
+                        .setMaxValues(
+                            1
+                        );
+
+
+                await interaction.reply({
+
+                    content:
+                        '📍 Choisis le salon des messages d’arrivée :',
+
+                    components: [
+
+                        new ActionRowBuilder()
+                            .addComponents(
+                                menu
+                            )
+
+                    ],
+
+                    flags:
+                        MessageFlags.Ephemeral
+
+                });
+
+
+                return;
+
+            }
+
+
+// ==================================================
+// SAUVEGARDER SALON ARRIVÉE
+// ==================================================
+
+            if (
+                interaction.isChannelSelectMenu() &&
+                interaction.customId ===
+                    'select_welcome_channel'
+            ) {
+
+                const config =
+                    chargerConfigServeur(
+                        interaction.guild.id
+                    );
+
+
+                config.welcome.welcomeChannelId =
+                    interaction.values[0];
+
+
+                sauvegarderConfigServeur(
+                    interaction.guild.id,
+                    config
+                );
+
+
+                await interaction.update({
+
+                    content:
+                        `✅ Salon d’arrivée : <#${interaction.values[0]}>`,
+
+                    components:
+                        []
+
+                });
+
+
+                return;
+
+            }
+
+
+// ==================================================
+// CHOISIR SALON DÉPART
+// ==================================================
+
+            if (
+                interaction.isButton() &&
+                interaction.customId ===
+                    'goodbye_channel'
+            ) {
+
+                const menu =
+                    new ChannelSelectMenuBuilder()
+
+                        .setCustomId(
+                            'select_goodbye_channel'
+                        )
+
+                        .setPlaceholder(
+                            'Choisis le salon de départ'
+                        )
+
+                        .addChannelTypes(
+                            ChannelType.GuildText
+                        )
+
+                        .setMinValues(
+                            1
+                        )
+
+                        .setMaxValues(
+                            1
+                        );
+
+
+                await interaction.reply({
+
+                    content:
+                        '📍 Choisis le salon des messages de départ :',
+
+                    components: [
+
+                        new ActionRowBuilder()
+                            .addComponents(
+                                menu
+                            )
+
+                    ],
+
+                    flags:
+                        MessageFlags.Ephemeral
+
+                });
+
+
+                return;
+
+            }
+
+
+// ==================================================
+// SAUVEGARDER SALON DÉPART
+// ==================================================
+
+            if (
+                interaction.isChannelSelectMenu() &&
+                interaction.customId ===
+                    'select_goodbye_channel'
+            ) {
+
+                const config =
+                    chargerConfigServeur(
+                        interaction.guild.id
+                    );
+
+
+                config.welcome.goodbyeChannelId =
+                    interaction.values[0];
+
+
+                sauvegarderConfigServeur(
+                    interaction.guild.id,
+                    config
+                );
+
+
+                await interaction.update({
+
+                    content:
+                        `✅ Salon de départ : <#${interaction.values[0]}>`,
+
+                    components:
+                        []
+
+                });
+
+
+                return;
+
+            }
+
+
+// ==================================================
+// STYLE MESSAGE ARRIVÉE
+// ==================================================
+
+            if (
+                interaction.isButton() &&
+                interaction.customId ===
+                    'welcome_style'
+            ) {
+
+                const config =
+                    chargerConfigServeur(
+                        interaction.guild.id
+                    );
+
+
+                const modal =
+                    new ModalBuilder()
+
+                        .setCustomId(
+                            'modal_welcome_style'
+                        )
+
+                        .setTitle(
+                            'Message d’arrivée'
+                        );
+
+
+                const titre =
+                    new TextInputBuilder()
+
+                        .setCustomId(
+                            'welcome_title'
+                        )
+
+                        .setLabel(
+                            'Titre'
+                        )
+
+                        .setValue(
+                            config.welcome.welcomeTitle ||
+                            ''
+                        )
+
+                        .setPlaceholder(
+                            'Bienvenue {user} !'
+                        )
+
+                        .setStyle(
+                            TextInputStyle.Short
+                        )
+
+                        .setRequired(
+                            true
+                        )
+
+                        .setMaxLength(
+                            256
+                        );
+
+
+                const message =
+                    new TextInputBuilder()
+
+                        .setCustomId(
+                            'welcome_message'
+                        )
+
+                        .setLabel(
+                            'Message'
+                        )
+
+                        .setValue(
+                            config.welcome.welcomeMessage ||
+                            ''
+                        )
+
+                        .setPlaceholder(
+                            'Bienvenue sur {server}, {mention} !'
+                        )
+
+                        .setStyle(
+                            TextInputStyle.Paragraph
+                        )
+
+                        .setRequired(
+                            true
+                        )
+
+                        .setMaxLength(
+                            3000
+                        );
+
+
+                const couleur =
+                    new TextInputBuilder()
+
+                        .setCustomId(
+                            'welcome_color'
+                        )
+
+                        .setLabel(
+                            'Couleur HEX'
+                        )
+
+                        .setValue(
+                            config.welcome.welcomeColor ||
+                            '#57F287'
+                        )
+
+                        .setPlaceholder(
+                            '#57F287'
+                        )
+
+                        .setStyle(
+                            TextInputStyle.Short
+                        )
+
+                        .setRequired(
+                            true
+                        )
+
+                        .setMaxLength(
+                            7
+                        );
+
+
+                modal.addComponents(
+
+                    new ActionRowBuilder()
+                        .addComponents(
+                            titre
+                        ),
+
+                    new ActionRowBuilder()
+                        .addComponents(
+                            message
+                        ),
+
+                    new ActionRowBuilder()
+                        .addComponents(
+                            couleur
+                        )
+
+                );
+
+
+                await interaction.showModal(
+                    modal
+                );
+
+
+                return;
+
+            }
+
+
+// ==================================================
+// SAUVEGARDER STYLE ARRIVÉE
+// ==================================================
+
+            if (
+                interaction.isModalSubmit() &&
+                interaction.customId ===
+                    'modal_welcome_style'
+            ) {
+
+                const config =
+                    chargerConfigServeur(
+                        interaction.guild.id
+                    );
+
+
+                config.welcome.welcomeTitle =
+                    interaction.fields
+                        .getTextInputValue(
+                            'welcome_title'
+                        )
+                        .trim();
+
+
+                config.welcome.welcomeMessage =
+                    interaction.fields
+                        .getTextInputValue(
+                            'welcome_message'
+                        )
+                        .trim();
+
+
+                config.welcome.welcomeColor =
+                    couleurValide(
+
+                        interaction.fields
+                            .getTextInputValue(
+                                'welcome_color'
+                            )
+                            .trim(),
+
+                        '#57F287'
+
+                    );
+
+
+                sauvegarderConfigServeur(
+                    interaction.guild.id,
+                    config
+                );
+
+
+                await interaction.reply({
+
+                    content:
+                        '✅ Message d’arrivée enregistré.',
+
+                    flags:
+                        MessageFlags.Ephemeral
+
+                });
+
+
+                return;
+
+            }
+
+
+// ==================================================
+// STYLE MESSAGE DÉPART
+// ==================================================
+
+            if (
+                interaction.isButton() &&
+                interaction.customId ===
+                    'goodbye_style'
+            ) {
+
+                const config =
+                    chargerConfigServeur(
+                        interaction.guild.id
+                    );
+
+
+                const modal =
+                    new ModalBuilder()
+
+                        .setCustomId(
+                            'modal_goodbye_style'
+                        )
+
+                        .setTitle(
+                            'Message de départ'
+                        );
+
+
+                const titre =
+                    new TextInputBuilder()
+
+                        .setCustomId(
+                            'goodbye_title'
+                        )
+
+                        .setLabel(
+                            'Titre'
+                        )
+
+                        .setValue(
+                            config.welcome.goodbyeTitle ||
+                            ''
+                        )
+
+                        .setPlaceholder(
+                            '{user} a quitté le serveur'
+                        )
+
+                        .setStyle(
+                            TextInputStyle.Short
+                        )
+
+                        .setRequired(
+                            true
+                        )
+
+                        .setMaxLength(
+                            256
+                        );
+
+
+                const message =
+                    new TextInputBuilder()
+
+                        .setCustomId(
+                            'goodbye_message'
+                        )
+
+                        .setLabel(
+                            'Message'
+                        )
+
+                        .setValue(
+                            config.welcome.goodbyeMessage ||
+                            ''
+                        )
+
+                        .setPlaceholder(
+                            'Au revoir {user}.'
+                        )
+
+                        .setStyle(
+                            TextInputStyle.Paragraph
+                        )
+
+                        .setRequired(
+                            true
+                        )
+
+                        .setMaxLength(
+                            3000
+                        );
+
+
+                const couleur =
+                    new TextInputBuilder()
+
+                        .setCustomId(
+                            'goodbye_color'
+                        )
+
+                        .setLabel(
+                            'Couleur HEX'
+                        )
+
+                        .setValue(
+                            config.welcome.goodbyeColor ||
+                            '#ED4245'
+                        )
+
+                        .setPlaceholder(
+                            '#ED4245'
+                        )
+
+                        .setStyle(
+                            TextInputStyle.Short
+                        )
+
+                        .setRequired(
+                            true
+                        )
+
+                        .setMaxLength(
+                            7
+                        );
+
+
+                modal.addComponents(
+
+                    new ActionRowBuilder()
+                        .addComponents(
+                            titre
+                        ),
+
+                    new ActionRowBuilder()
+                        .addComponents(
+                            message
+                        ),
+
+                    new ActionRowBuilder()
+                        .addComponents(
+                            couleur
+                        )
+
+                );
+
+
+                await interaction.showModal(
+                    modal
+                );
+
+
+                return;
+
+            }
+
+
+// ==================================================
+// SAUVEGARDER STYLE DÉPART
+// ==================================================
+
+            if (
+                interaction.isModalSubmit() &&
+                interaction.customId ===
+                    'modal_goodbye_style'
+            ) {
+
+                const config =
+                    chargerConfigServeur(
+                        interaction.guild.id
+                    );
+
+
+                config.welcome.goodbyeTitle =
+                    interaction.fields
+                        .getTextInputValue(
+                            'goodbye_title'
+                        )
+                        .trim();
+
+
+                config.welcome.goodbyeMessage =
+                    interaction.fields
+                        .getTextInputValue(
+                            'goodbye_message'
+                        )
+                        .trim();
+
+
+                config.welcome.goodbyeColor =
+                    couleurValide(
+
+                        interaction.fields
+                            .getTextInputValue(
+                                'goodbye_color'
+                            )
+                            .trim(),
+
+                        '#ED4245'
+
+                    );
+
+
+                sauvegarderConfigServeur(
+                    interaction.guild.id,
+                    config
+                );
+
+
+                await interaction.reply({
+
+                    content:
+                        '✅ Message de départ enregistré.',
+
+                    flags:
+                        MessageFlags.Ephemeral
+
+                });
+
+
+                return;
+
+            }
+
+
+// ==================================================
+// AVATAR ARRIVÉE
+// ==================================================
+
+            if (
+                interaction.isButton() &&
+                interaction.customId ===
+                    'welcome_avatar_toggle'
+            ) {
+
+                const config =
+                    chargerConfigServeur(
+                        interaction.guild.id
+                    );
+
+
+                config.welcome.welcomeShowAvatar =
+                    !config.welcome.welcomeShowAvatar;
+
+
+                sauvegarderConfigServeur(
+                    interaction.guild.id,
+                    config
+                );
+
+
+                await interaction.reply({
+
+                    content:
+                        config.welcome.welcomeShowAvatar
+                            ? '✅ Avatar activé dans les messages d’arrivée.'
+                            : '❌ Avatar désactivé dans les messages d’arrivée.',
+
+                    flags:
+                        MessageFlags.Ephemeral
+
+                });
+
+
+                return;
+
+            }
+
+
+// ==================================================
+// AVATAR DÉPART
+// ==================================================
+
+            if (
+                interaction.isButton() &&
+                interaction.customId ===
+                    'goodbye_avatar_toggle'
+            ) {
+
+                const config =
+                    chargerConfigServeur(
+                        interaction.guild.id
+                    );
+
+
+                config.welcome.goodbyeShowAvatar =
+                    !config.welcome.goodbyeShowAvatar;
+
+
+                sauvegarderConfigServeur(
+                    interaction.guild.id,
+                    config
+                );
+
+
+                await interaction.reply({
+
+                    content:
+                        config.welcome.goodbyeShowAvatar
+                            ? '✅ Avatar activé dans les messages de départ.'
+                            : '❌ Avatar désactivé dans les messages de départ.',
+
+                    flags:
+                        MessageFlags.Ephemeral
+
+                });
+
+
+                return;
+
+            }
+
+
+// ==================================================
+// IMAGE ARRIVÉE
+// ==================================================
+
+            if (
+                interaction.isButton() &&
+                interaction.customId ===
+                    'welcome_image'
+            ) {
+
+                const cle =
+                    `${interaction.guild.id}:${interaction.user.id}`;
+
+
+                attenteImageBienvenue.set(
+
+                    cle,
+
+                    {
+
+                        type:
+                            'welcome',
+
+                        channelId:
+                            interaction.channel.id,
+
+                        expiresAt:
+                            Date.now() +
+                            120000
+
+                    }
+
+                );
+
+
+                await interaction.reply({
+
+                    content:
+                        '🖼️ Envoie maintenant **l’image d’arrivée** dans ce salon.\nTu as **2 minutes**.',
+
+                    flags:
+                        MessageFlags.Ephemeral
+
+                });
+
+
+                return;
+
+            }
+
+
+// ==================================================
+// IMAGE DÉPART
+// ==================================================
+
+            if (
+                interaction.isButton() &&
+                interaction.customId ===
+                    'goodbye_image'
+            ) {
+
+                const cle =
+                    `${interaction.guild.id}:${interaction.user.id}`;
+
+
+                attenteImageBienvenue.set(
+
+                    cle,
+
+                    {
+
+                        type:
+                            'goodbye',
+
+                        channelId:
+                            interaction.channel.id,
+
+                        expiresAt:
+                            Date.now() +
+                            120000
+
+                    }
+
+                );
+
+
+                await interaction.reply({
+
+                    content:
+                        '🖼️ Envoie maintenant **l’image de départ** dans ce salon.\nTu as **2 minutes**.',
+
+                    flags:
+                        MessageFlags.Ephemeral
+
+                });
+
+
+                return;
+
+            }
+
+
+// ==================================================
+// SUPPRIMER IMAGE ARRIVÉE
+// ==================================================
+
+            if (
+                interaction.isButton() &&
+                interaction.customId ===
+                    'welcome_image_delete'
+            ) {
+
+                const config =
+                    chargerConfigServeur(
+                        interaction.guild.id
+                    );
+
+
+                config.welcome.welcomeImageUrl =
+                    '';
+
+
+                sauvegarderConfigServeur(
+                    interaction.guild.id,
+                    config
+                );
+
+
+                await interaction.reply({
+
+                    content:
+                        '✅ Image d’arrivée supprimée.',
+
+                    flags:
+                        MessageFlags.Ephemeral
+
+                });
+
+
+                return;
+
+            }
+
+
+// ==================================================
+// SUPPRIMER IMAGE DÉPART
+// ==================================================
+
+            if (
+                interaction.isButton() &&
+                interaction.customId ===
+                    'goodbye_image_delete'
+            ) {
+
+                const config =
+                    chargerConfigServeur(
+                        interaction.guild.id
+                    );
+
+
+                config.welcome.goodbyeImageUrl =
+                    '';
+
+
+                sauvegarderConfigServeur(
+                    interaction.guild.id,
+                    config
+                );
+
+
+                await interaction.reply({
+
+                    content:
+                        '✅ Image de départ supprimée.',
+
+                    flags:
+                        MessageFlags.Ephemeral
+
+                });
+
+
+                return;
+
+            }
+
 // ======================================================
 // PANEL ANNONCES
 // ======================================================
@@ -7235,7 +8880,7 @@ client.on(
 
 
 // ======================================================
-// SALON ANNONCES
+// CHOISIR SALON ANNONCES
 // ======================================================
 
             if (
@@ -7293,6 +8938,10 @@ client.on(
             }
 
 
+// ======================================================
+// SAUVEGARDER SALON ANNONCES
+// ======================================================
+
             if (
                 interaction.isChannelSelectMenu() &&
                 interaction.customId ===
@@ -7318,7 +8967,7 @@ client.on(
                 await interaction.update({
 
                     content:
-                        `✅ Salon d'annonces de **${interaction.guild.name}** : <#${interaction.values[0]}>`,
+                        `✅ Salon d'annonces : <#${interaction.values[0]}>`,
 
                     components:
                         []
@@ -7371,7 +9020,8 @@ client.on(
                         )
 
                         .setValue(
-                            config.annonces.color
+                            config.annonces.color ||
+                            '#F47B20'
                         )
 
                         .setStyle(
@@ -7380,6 +9030,10 @@ client.on(
 
                         .setRequired(
                             true
+                        )
+
+                        .setMaxLength(
+                            7
                         );
 
 
@@ -7396,7 +9050,7 @@ client.on(
 
                         .setValue(
                             config.annonces.footer ||
-                            ' '
+                            ''
                         )
 
                         .setStyle(
@@ -7405,6 +9059,10 @@ client.on(
 
                         .setRequired(
                             false
+                        )
+
+                        .setMaxLength(
+                            2048
                         );
 
 
@@ -7433,6 +9091,10 @@ client.on(
             }
 
 
+// ======================================================
+// SAUVEGARDER STYLE ANNONCES
+// ======================================================
+
             if (
                 interaction.isModalSubmit() &&
                 interaction.customId ===
@@ -7451,7 +9113,8 @@ client.on(
                         interaction.fields
                             .getTextInputValue(
                                 'annonce_style_color'
-                            ),
+                            )
+                            .trim(),
 
                         '#F47B20'
 
@@ -7511,7 +9174,7 @@ client.on(
                     await interaction.reply({
 
                         content:
-                            '❌ Configure d’abord le salon des annonces de ce serveur.',
+                            '❌ Configure d’abord le salon des annonces.',
 
                         flags:
                             MessageFlags.Ephemeral
@@ -7557,6 +9220,10 @@ client.on(
 
                         .setRequired(
                             true
+                        )
+
+                        .setMaxLength(
+                            256
                         );
 
 
@@ -7581,6 +9248,10 @@ client.on(
 
                         .setRequired(
                             true
+                        )
+
+                        .setMaxLength(
+                            4000
                         );
 
 
@@ -7658,14 +9329,16 @@ client.on(
                     interaction.fields
                         .getTextInputValue(
                             'annonce_title'
-                        );
+                        )
+                        .trim();
 
 
                 const message =
                     interaction.fields
                         .getTextInputValue(
                             'annonce_message'
-                        );
+                        )
+                        .trim();
 
 
                 const image =
@@ -7720,6 +9393,15 @@ client.on(
 
                     embed.setImage(
                         image
+                    );
+
+                }
+
+                else {
+
+                    appliquerBanniereEmbed(
+                        embed,
+                        interaction.guild
                     );
 
                 }
@@ -7896,7 +9578,7 @@ client.on(
 
 
 // ======================================================
-// MENTION ANNONCE : AUCUNE / EVERYONE
+// MENTION : AUCUNE / @EVERYONE
 // ======================================================
 
             if (
@@ -7946,7 +9628,7 @@ client.on(
                     await interaction.reply({
 
                         content:
-                            '❌ Cette annonce n’est plus disponible ou appartient à un autre serveur.',
+                            '❌ Cette annonce n’est plus disponible.',
 
                         flags:
                             MessageFlags.Ephemeral
@@ -7993,7 +9675,7 @@ client.on(
 
 
 // ======================================================
-// MENTION ROLE ANNONCE
+// CHOISIR UN RÔLE À MENTIONNER
 // ======================================================
 
             if (
@@ -8018,10 +9700,10 @@ client.on(
 
                 if (
                     !annonce ||
-                    annonce.userId !==
-                        interaction.user.id ||
                     annonce.guildId !==
-                        interaction.guild.id
+                        interaction.guild.id ||
+                    annonce.userId !==
+                        interaction.user.id
                 ) {
 
                     await interaction.reply({
@@ -8063,7 +9745,7 @@ client.on(
                 await interaction.reply({
 
                     content:
-                        '👥 Choisis le rôle de ce serveur :',
+                        '👥 Choisis le rôle à mentionner :',
 
                     components: [
 
@@ -8084,6 +9766,10 @@ client.on(
 
             }
 
+
+// ======================================================
+// SAUVEGARDER RÔLE À MENTIONNER
+// ======================================================
 
             if (
                 interaction.isRoleSelectMenu() &&
@@ -8140,7 +9826,7 @@ client.on(
                 await interaction.update({
 
                     content:
-                        `✅ L'annonce mentionnera <@&${interaction.values[0]}> sur **${interaction.guild.name}**.`,
+                        `✅ L’annonce mentionnera <@&${interaction.values[0]}>.`,
 
                     components:
                         []
@@ -8188,7 +9874,7 @@ client.on(
                     await interaction.reply({
 
                         content:
-                            '❌ Cette annonce n’est plus disponible ou appartient à un autre serveur.',
+                            '❌ Cette annonce n’est plus disponible.',
 
                         flags:
                             MessageFlags.Ephemeral
@@ -8231,7 +9917,7 @@ client.on(
                     await interaction.reply({
 
                         content:
-                            '❌ Salon d’annonces introuvable sur ce serveur.',
+                            '❌ Salon d’annonces introuvable.',
 
                         flags:
                             MessageFlags.Ephemeral
@@ -8292,8 +9978,18 @@ client.on(
 
                 }
 
+                else {
 
-                let content;
+                    appliquerBanniereEmbed(
+                        embed,
+                        interaction.guild
+                    );
+
+                }
+
+
+                let content =
+                    undefined;
 
 
                 let allowedMentions = {
@@ -8348,19 +10044,30 @@ client.on(
                 }
 
 
-                await salon.send({
+                // --------------------------------------------------
+                // ICI on utilise le webhook d'apparence
+                // car l'annonce est un message PUBLIC.
+                // --------------------------------------------------
 
-                    content:
-                        content,
+                await envoyerMessagePersonnalise(
 
-                    embeds: [
-                        embed
-                    ],
+                    salon,
 
-                    allowedMentions:
-                        allowedMentions
+                    {
 
-                });
+                        content:
+                            content,
+
+                        embeds: [
+                            embed
+                        ],
+
+                        allowedMentions:
+                            allowedMentions
+
+                    }
+
+                );
 
 
                 annoncesEnAttente.delete(
@@ -8371,7 +10078,7 @@ client.on(
                 await interaction.update({
 
                     content:
-                        `✅ Annonce publiée dans ${salon} sur **${interaction.guild.name}**.`,
+                        `✅ Annonce publiée dans ${salon}.`,
 
                     embeds:
                         [],
@@ -8705,7 +10412,7 @@ client.on(
                 await interaction.update({
 
                     content:
-                        `✅ Salon Streams de **${interaction.guild.name}** : <#${interaction.values[0]}>`,
+                        `✅ Salon Streams : <#${interaction.values[0]}>`,
 
                     components:
                         []
@@ -8861,6 +10568,9 @@ client.on(
                         messageId:
                             '',
 
+                        channelId:
+                            '',
+
                         lastStreamId:
                             ''
 
@@ -8917,7 +10627,8 @@ client.on(
 
                 const streamers =
                     Object.values(
-                        config.streams.streamers
+                        config.streams.streamers ||
+                        {}
                     );
 
 
@@ -8955,10 +10666,12 @@ client.on(
                         .addOptions(
 
                             streamers
+
                                 .slice(
                                     0,
                                     25
                                 )
+
                                 .map(
                                     streamer => ({
 
@@ -9014,6 +10727,10 @@ client.on(
             }
 
 
+// ======================================================
+// CONFIRMER SUPPRESSION STREAMER
+// ======================================================
+
             if (
                 interaction.isStringSelectMenu() &&
                 interaction.customId ===
@@ -9063,7 +10780,6 @@ client.on(
 
                     await supprimerAnnonceStream(
                         interaction.guild,
-                        config,
                         streamer
                     );
 
@@ -9084,7 +10800,7 @@ client.on(
                 await interaction.update({
 
                     content:
-                        `✅ **${streamer.displayName || streamer.login}** supprimé de la surveillance Twitch de **${interaction.guild.name}**.`,
+                        `✅ **${streamer.displayName || streamer.login}** supprimé de la surveillance Twitch.`,
 
                     components:
                         []
@@ -9141,7 +10857,12 @@ client.on(
                         )
 
                         .setValue(
-                            e.title
+                            e.title ||
+                            '{streamer} est en live !'
+                        )
+
+                        .setPlaceholder(
+                            '{streamer} est en live !'
                         )
 
                         .setStyle(
@@ -9150,6 +10871,10 @@ client.on(
 
                         .setRequired(
                             true
+                        )
+
+                        .setMaxLength(
+                            256
                         );
 
 
@@ -9165,7 +10890,12 @@ client.on(
                         )
 
                         .setValue(
-                            e.description
+                            e.description ||
+                            ''
+                        )
+
+                        .setPlaceholder(
+                            '{title}\nJeu : {game}\nSpectateurs : {viewers}'
                         )
 
                         .setStyle(
@@ -9174,6 +10904,10 @@ client.on(
 
                         .setRequired(
                             true
+                        )
+
+                        .setMaxLength(
+                            3000
                         );
 
 
@@ -9189,7 +10923,12 @@ client.on(
                         )
 
                         .setValue(
-                            e.color
+                            e.color ||
+                            '#9146FF'
+                        )
+
+                        .setPlaceholder(
+                            '#9146FF'
                         )
 
                         .setStyle(
@@ -9198,6 +10937,10 @@ client.on(
 
                         .setRequired(
                             true
+                        )
+
+                        .setMaxLength(
+                            7
                         );
 
 
@@ -9214,7 +10957,7 @@ client.on(
 
                         .setValue(
                             e.footer ||
-                            ' '
+                            ''
                         )
 
                         .setStyle(
@@ -9223,6 +10966,10 @@ client.on(
 
                         .setRequired(
                             false
+                        )
+
+                        .setMaxLength(
+                            2048
                         );
 
 
@@ -9248,6 +10995,10 @@ client.on(
 
                         .setRequired(
                             true
+                        )
+
+                        .setMaxLength(
+                            80
                         );
 
 
@@ -9291,6 +11042,10 @@ client.on(
             }
 
 
+// ======================================================
+// SAUVEGARDER EMBED STREAM
+// ======================================================
+
             if (
                 interaction.isModalSubmit() &&
                 interaction.customId ===
@@ -9307,14 +11062,16 @@ client.on(
                     interaction.fields
                         .getTextInputValue(
                             'stream_embed_title'
-                        );
+                        )
+                        .trim();
 
 
                 config.streams.embed.description =
                     interaction.fields
                         .getTextInputValue(
                             'stream_embed_description'
-                        );
+                        )
+                        .trim();
 
 
                 config.streams.embed.color =
@@ -9323,7 +11080,8 @@ client.on(
                         interaction.fields
                             .getTextInputValue(
                                 'stream_embed_color'
-                            ),
+                            )
+                            .trim(),
 
                         '#9146FF'
 
@@ -9359,7 +11117,7 @@ client.on(
                 await interaction.reply({
 
                     content:
-                        `✅ Embed Twitch de **${interaction.guild.name}** modifié.\n\nVariables disponibles : \`{streamer}\`, \`{login}\`, \`{title}\`, \`{game}\`, \`{viewers}\``,
+                        `✅ Embed Twitch de **${interaction.guild.name}** modifié.`,
 
                     flags:
                         MessageFlags.Ephemeral
@@ -9469,56 +11227,583 @@ client.on(
 
             }
 
+// ======================================================
+// FIN DES INTERACTIONS NON TRAITÉES
+// ======================================================
+
         }
 
         catch (error) {
 
             console.error(
-                '❌ Erreur interaction :',
+                '❌ Erreur InteractionCreate :',
                 error
             );
 
 
-            try {
+            // --------------------------------------------------
+            // Si Discord a déjà reçu une réponse
+            // --------------------------------------------------
+
+            if (
+                interaction.deferred ||
+                interaction.replied
+            ) {
+
+                await interaction.followUp({
+
+                    content:
+                        '❌ Une erreur est survenue pendant cette action.',
+
+                    flags:
+                        MessageFlags.Ephemeral
+
+                })
+                    .catch(
+                        () => {}
+                    );
+
+            }
+
+            // --------------------------------------------------
+            // Sinon réponse normale
+            // --------------------------------------------------
+
+            else if (
+                interaction.isRepliable()
+            ) {
+
+                await interaction.reply({
+
+                    content:
+                        '❌ Une erreur est survenue pendant cette action.',
+
+                    flags:
+                        MessageFlags.Ephemeral
+
+                })
+                    .catch(
+                        () => {}
+                    );
+
+            }
+
+        }
+
+    }
+
+);
+
+
+// ======================================================
+// GÉNÉRER LE TRANSCRIPT COMPLET D'UN TICKET
+// ======================================================
+
+async function genererTranscript(
+    channel
+) {
+
+    const messages =
+        [];
+
+
+    let before =
+        undefined;
+
+
+    // ==================================================
+    // RÉCUPÉRATION DE TOUS LES MESSAGES
+    // ==================================================
+
+    while (
+        true
+    ) {
+
+        const options = {
+
+            limit:
+                100
+
+        };
+
+
+        if (
+            before
+        ) {
+
+            options.before =
+                before;
+
+        }
+
+
+        const collection =
+            await channel.messages.fetch(
+                options
+            );
+
+
+        if (
+            !collection.size
+        ) {
+
+            break;
+
+        }
+
+
+        messages.push(
+            ...collection.values()
+        );
+
+
+        before =
+            collection.last().id;
+
+
+        if (
+            collection.size <
+            100
+        ) {
+
+            break;
+
+        }
+
+    }
+
+
+    // ==================================================
+    // ORDRE CHRONOLOGIQUE
+    // ==================================================
+
+    messages.sort(
+
+        (
+            a,
+            b
+        ) =>
+            a.createdTimestamp -
+            b.createdTimestamp
+
+    );
+
+
+    // ==================================================
+    // EN-TÊTE
+    // ==================================================
+
+    const lignes = [
+
+        '============================================================',
+
+        '                    TRANSCRIPT DU TICKET',
+
+        '============================================================',
+
+        '',
+
+        `Serveur : ${channel.guild.name}`,
+
+        `Serveur ID : ${channel.guild.id}`,
+
+        `Salon : #${channel.name}`,
+
+        `Salon ID : ${channel.id}`,
+
+        `Sujet : ${channel.topic || 'Aucun'}`,
+
+        `Date du transcript : ${new Date().toLocaleString('fr-FR')}`,
+
+        '',
+
+        '============================================================',
+
+        ''
+
+    ];
+
+
+    // ==================================================
+    // TRAITEMENT DE CHAQUE MESSAGE
+    // ==================================================
+
+    for (
+        const message
+        of messages
+    ) {
+
+        const date =
+            new Date(
+                message.createdTimestamp
+            )
+                .toLocaleString(
+                    'fr-FR'
+                );
+
+
+        const auteur =
+            message.author
+
+                ? `${message.author.tag} (${message.author.id})`
+
+                : 'Auteur inconnu';
+
+
+        lignes.push(
+            `[${date}] ${auteur}`
+        );
+
+
+        // --------------------------------------------------
+        // CONTENU TEXTE
+        // --------------------------------------------------
+
+        if (
+            message.content
+        ) {
+
+            lignes.push(
+                message.content
+            );
+
+        }
+
+
+        // --------------------------------------------------
+        // PIÈCES JOINTES
+        // --------------------------------------------------
+
+        if (
+            message.attachments.size
+        ) {
+
+            for (
+                const attachment
+                of message.attachments.values()
+            ) {
+
+                lignes.push(
+
+                    `[PIÈCE JOINTE] ${
+                        attachment.name ||
+                        'fichier'
+                    }`
+
+                );
+
+
+                lignes.push(
+                    attachment.url
+                );
+
+            }
+
+        }
+
+
+        // --------------------------------------------------
+        // EMBEDS
+        // --------------------------------------------------
+
+        if (
+            message.embeds.length
+        ) {
+
+            for (
+                const embed
+                of message.embeds
+            ) {
+
+                lignes.push(
+                    '[EMBED]'
+                );
+
 
                 if (
-                    interaction.deferred ||
-                    interaction.replied
+                    embed.title
                 ) {
 
-                    await interaction.followUp({
-
-                        content:
-                            '❌ Une erreur est survenue pendant cette action.',
-
-                        flags:
-                            MessageFlags.Ephemeral
-
-                    });
+                    lignes.push(
+                        `Titre : ${embed.title}`
+                    );
 
                 }
 
-                else {
 
-                    await interaction.reply({
+                if (
+                    embed.description
+                ) {
 
-                        content:
-                            '❌ Une erreur est survenue pendant cette action.',
+                    lignes.push(
+                        `Description : ${embed.description}`
+                    );
 
-                        flags:
-                            MessageFlags.Ephemeral
+                }
 
-                    });
+
+                if (
+                    embed.url
+                ) {
+
+                    lignes.push(
+                        `URL : ${embed.url}`
+                    );
+
+                }
+
+
+                if (
+                    embed.fields?.length
+                ) {
+
+                    for (
+                        const field
+                        of embed.fields
+                    ) {
+
+                        lignes.push(
+                            `${field.name} : ${field.value}`
+                        );
+
+                    }
+
+                }
+
+
+                if (
+                    embed.image?.url
+                ) {
+
+                    lignes.push(
+                        `Image : ${embed.image.url}`
+                    );
+
+                }
+
+
+                if (
+                    embed.thumbnail?.url
+                ) {
+
+                    lignes.push(
+                        `Miniature : ${embed.thumbnail.url}`
+                    );
+
+                }
+
+
+                if (
+                    embed.footer?.text
+                ) {
+
+                    lignes.push(
+                        `Footer : ${embed.footer.text}`
+                    );
 
                 }
 
             }
 
-            catch (_) {}
+        }
+
+
+        // --------------------------------------------------
+        // STICKERS
+        // --------------------------------------------------
+
+        if (
+            message.stickers?.size
+        ) {
+
+            for (
+                const sticker
+                of message.stickers.values()
+            ) {
+
+                lignes.push(
+                    `[STICKER] ${sticker.name}`
+                );
+
+            }
 
         }
 
+
+        // --------------------------------------------------
+        // RÉPONSE À UN MESSAGE
+        // --------------------------------------------------
+
+        if (
+            message.reference?.messageId
+        ) {
+
+            lignes.push(
+                `[RÉPONSE AU MESSAGE] ${message.reference.messageId}`
+            );
+
+        }
+
+
+        lignes.push(
+            ''
+        );
+
+
+        lignes.push(
+            '------------------------------------------------------------'
+        );
+
+
+        lignes.push(
+            ''
+        );
+
     }
+
+
+    // ==================================================
+    // FIN DU TRANSCRIPT
+    // ==================================================
+
+    lignes.push(
+        ''
+    );
+
+
+    lignes.push(
+        '============================================================'
+    );
+
+
+    lignes.push(
+        `Nombre total de messages : ${messages.length}`
+    );
+
+
+    lignes.push(
+        '============================================================'
+    );
+
+
+    const texte =
+        lignes.join(
+            '\n'
+        );
+
+
+    return {
+
+        buffer:
+            Buffer.from(
+                texte,
+                'utf8'
+            ),
+
+        messageCount:
+            messages.length,
+
+        text:
+            texte
+
+    };
+
+}
+
+
+// ======================================================
+// ERREURS PROCESS NODE.JS
+// ======================================================
+
+process.on(
+
+    'unhandledRejection',
+
+    error => {
+
+        console.error(
+            '❌ UNHANDLED REJECTION :',
+            error
+        );
+
+    }
+
+);
+
+
+process.on(
+
+    'uncaughtException',
+
+    error => {
+
+        console.error(
+            '❌ UNCAUGHT EXCEPTION :',
+            error
+        );
+
+    }
+
+);
+
+
+// ======================================================
+// ARRÊT PROPRE DU BOT
+// ======================================================
+
+async function arreterBot(
+    signal
+) {
+
+    console.log(
+        `🛑 Signal ${signal} reçu. Arrêt du bot...`
+    );
+
+
+    try {
+
+        client.destroy();
+
+    }
+
+    catch (error) {
+
+        console.error(
+            '❌ Erreur arrêt client Discord :',
+            error
+        );
+
+    }
+
+
+    process.exit(
+        0
+    );
+
+}
+
+
+process.once(
+
+    'SIGINT',
+
+    () =>
+        arreterBot(
+            'SIGINT'
+        )
+
+);
+
+
+process.once(
+
+    'SIGTERM',
+
+    () =>
+        arreterBot(
+            'SIGTERM'
+        )
+
 );
 
 
@@ -9528,9 +11813,55 @@ client.on(
 
 async function demarrerBot() {
 
+    console.log(
+        '================================='
+    );
+
+    console.log(
+        '🟠 BOTTEST // DÉMARRAGE'
+    );
+
+    console.log(
+        '================================='
+    );
+
+
+    // ==================================================
+    // VÉRIFIER TOKEN DISCORD
+    // ==================================================
+
+    if (
+        !process.env.DISCORD_TOKEN
+    ) {
+
+        console.error(
+            '❌ DISCORD_TOKEN absent.'
+        );
+
+
+        process.exit(
+            1
+        );
+
+    }
+
+
     try {
 
+        // ----------------------------------------------
+        // Installation des commandes
+        // ----------------------------------------------
+
         await enregistrerCommandes();
+
+
+        // ----------------------------------------------
+        // Connexion Discord
+        // ----------------------------------------------
+
+        console.log(
+            '🔐 Connexion à Discord...'
+        );
 
 
         await client.login(
@@ -9555,5 +11886,9 @@ async function demarrerBot() {
 
 }
 
+
+// ======================================================
+// LANCEMENT FINAL
+// ======================================================
 
 demarrerBot();
