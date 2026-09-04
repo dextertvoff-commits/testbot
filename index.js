@@ -6806,38 +6806,47 @@ client.on(
                 // --------------------------------------------------
 
                 const nomActuel =
-                    interaction.channel.name;
+                        interaction.channel.name;
 
 
-                const prefix =
-                    creerSlug(
-                        emojiStaff
-                    );
+                    // Retire un ancien préfixe "claim-" si présent
+                    let nomPropre =
+                        nomActuel.replace(
+                            /^claim-/,
+                            ''
+                        );
 
 
-                // Les emojis Unicode ne passent pas dans les noms
-                // Discord, donc on utilise "claim" dans le nom.
-                if (
-                    !nomActuel.startsWith(
-                        'claim-'
-                    )
-                ) {
+                    // Retire aussi un ancien emoji placé devant
+                    nomPropre =
+                        nomPropre.replace(
+                            /^[^\p{L}\p{N}]+/u,
+                            ''
+                        );
 
-                    await interaction.channel.setName(
 
-                        `claim-${nomActuel}`
+                    // Ajoute l'emoji du staff devant le ticket
+                    const nouveauNom =
+                        `${emojiStaff}・${nomPropre}`
                             .slice(
                                 0,
                                 100
-                            )
+                            );
 
+
+                    await interaction.channel.setName(
+                        nouveauNom
                     )
                         .catch(
-                            () => {}
+                            error => {
+
+                                console.error(
+                                    '❌ Impossible de mettre l’emoji dans le nom du ticket :',
+                                    error
+                                );
+
+                            }
                         );
-
-                }
-
 
                 // --------------------------------------------------
                 // Message de prise en charge
