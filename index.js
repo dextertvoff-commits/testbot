@@ -3477,7 +3477,7 @@ function creerPanelPrincipalAdmin(guild) {
     const embed = new EmbedBuilder()
         .setColor('#F47B20')
         .setTitle('⚙️ ORYUM SYSTEMS // PANNEAU ADMIN')
-        .setDescription(`Configuration de **${guild.name}**.\n\nChaque serveur possède ses propres paramètres.`)
+        .setDescription(`Configuration de **${guild.name}**.\n\nGérez les modules et paramètres disponibles depuis ce panneau.`)
         .setFooter({ text: `Serveur ID : ${guild.id}` });
 
     const ligne = new ActionRowBuilder().addComponents(
@@ -3587,7 +3587,7 @@ client.on(
 
                         .setDescription(
                             `Configuration de **${interaction.guild.name}**.\n\n` +
-                            'Chaque serveur possède ses propres paramètres.'
+                            'Gérez les modules et paramètres disponibles depuis ce panneau.'
                         )
 
                         .setFooter({
@@ -9424,7 +9424,7 @@ client.on(
                         MessageFlags.Ephemeral
 
                 });
-                programmerSuppressionEphemere(interaction, 15000);
+                programmerSuppressionEphemere(interaction, 30000);
 
 
                 return;
@@ -9476,7 +9476,7 @@ client.on(
                         MessageFlags.Ephemeral
 
                 });
-                programmerSuppressionEphemere(interaction, 15000);
+                programmerSuppressionEphemere(interaction, 30000);
 
 
                 return;
