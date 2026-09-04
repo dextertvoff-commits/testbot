@@ -3433,6 +3433,42 @@ client.on(
 // DÉBUT DES INTERACTIONS
 // ======================================================
 
+// ======================================================
+// NAVIGATION PANNEAU ADMIN
+// ======================================================
+
+function creerLigneRetourAdmin() {
+    return new ActionRowBuilder().addComponents(
+        new ButtonBuilder()
+            .setCustomId('admin_back')
+            .setLabel('Retour')
+            .setEmoji('⬅️')
+            .setStyle(ButtonStyle.Secondary)
+    );
+}
+
+function creerPanelPrincipalAdmin(guild) {
+    const embed = new EmbedBuilder()
+        .setColor('#F47B20')
+        .setTitle('⚙️ ORYUM SYSTEMS // PANNEAU ADMIN')
+        .setDescription(`Configuration de **${guild.name}**.\n\nChaque serveur possède ses propres paramètres.`)
+        .setFooter({ text: `Serveur ID : ${guild.id}` });
+
+    const ligne = new ActionRowBuilder().addComponents(
+        new ButtonBuilder().setCustomId('admin_tickets').setLabel('Tickets').setEmoji('🎫').setStyle(ButtonStyle.Primary),
+        new ButtonBuilder().setCustomId('admin_bienvenue').setLabel('Bienvenue').setEmoji('👋').setStyle(ButtonStyle.Secondary),
+        new ButtonBuilder().setCustomId('admin_annonces').setLabel('Annonces').setEmoji('📢').setStyle(ButtonStyle.Secondary),
+        new ButtonBuilder().setCustomId('admin_streams').setLabel('Streams').setEmoji('🔴').setStyle(ButtonStyle.Secondary),
+        new ButtonBuilder().setCustomId('admin_appearance').setLabel('Apparence').setEmoji('🤖').setStyle(ButtonStyle.Secondary)
+    );
+
+    const ligneAcces = new ActionRowBuilder().addComponents(
+        new ButtonBuilder().setCustomId('admin_access').setLabel('Accès Staff').setEmoji('🔐').setStyle(ButtonStyle.Secondary)
+    );
+
+    return { embeds: [embed], components: [ligne, ligneAcces] };
+}
+
 client.on(
 
     Events.InteractionCreate,
@@ -3684,6 +3720,31 @@ client.on(
             }
 
             // ==================================================
+            // RETOUR AU PANNEAU PRINCIPAL
+            // ==================================================
+
+            if (
+                interaction.isButton() &&
+                interaction.customId === 'admin_back'
+            ) {
+
+                const config = chargerConfigServeur(interaction.guild.id);
+
+                if (!utilisateurPeutAdministrerBot(interaction, config)) {
+                    await interaction.reply({
+                        content: '❌ ORYUM SYSTEMS est réservé au Staff autorisé sur ce serveur.',
+                        flags: MessageFlags.Ephemeral
+                    });
+                    return;
+                }
+
+                const panel = creerPanelPrincipalAdmin(interaction.guild);
+
+                await interaction.update(panel);
+                return;
+            }
+
+            // ==================================================
             // PANEL ACCÈS STAFF ORYUM SYSTEMS
             // ==================================================
 
@@ -3772,7 +3833,8 @@ client.on(
                     ],
 
                     components: [
-                        ligne
+                        ligne,
+                        creerLigneRetourAdmin()
                     ]
 
                 });
@@ -4063,7 +4125,8 @@ client.on(
 
                     components: [
                         ligne1,
-                        ligne2
+                        ligne2,
+                        creerLigneRetourAdmin()
                     ]
 
                 });
@@ -4487,18 +4550,6 @@ client.on(
                 );
 
 
-                await interaction.reply({
-
-                    embeds: [
-                        embed
-                    ],
-
-                    flags:
-                        MessageFlags.Ephemeral
-
-                });
-
-
                 return;
 
             }
@@ -4691,7 +4742,8 @@ client.on(
 
                     components: [
                         ligne1,
-                        ligne2
+                        ligne2,
+                        creerLigneRetourAdmin()
                     ]
 
                 });
@@ -8394,7 +8446,8 @@ client.on(
                         ligne2,
                         ligne3,
                         ligne4,
-                        ligne5
+                        ligne5,
+                        creerLigneRetourAdmin()
                     ]
 
                 });
@@ -9503,7 +9556,8 @@ client.on(
                     ],
 
                     components: [
-                        ligne
+                        ligne,
+                        creerLigneRetourAdmin()
                     ]
 
                 });
@@ -10952,7 +11006,8 @@ client.on(
 
                     components: [
                         r1,
-                        r2
+                        r2,
+                        creerLigneRetourAdmin()
                     ]
 
                 });
