@@ -146,7 +146,7 @@ function configBaseServeur() {
             panel: {
 
                 title:
-                    '🎫 SUPPORT // LE REFUGE',
+                    '🎫 ORYUM SYSTEMS // SUPPORT',
 
                 description:
                     '**Besoin d’aide ?**\n\nClique sur le bouton pour ouvrir une demande.',
@@ -158,7 +158,7 @@ function configBaseServeur() {
                     '#F47B20',
 
                 footer:
-                    'LE REFUGE FR • Support'
+                    'ORYUM SYSTEMS • Support'
 
             },
 
@@ -178,7 +178,7 @@ function configBaseServeur() {
                     '#F47B20',
 
                 footer:
-                    'LE REFUGE FR • Support',
+                    'ORYUM SYSTEMS • Support',
 
                 showAvatar:
                     true
@@ -201,7 +201,7 @@ function configBaseServeur() {
                 '#F47B20',
 
             footer:
-                'LE REFUGE FR • Annonce'
+                'ORYUM SYSTEMS • Annonces'
 
         },
 
@@ -236,7 +236,7 @@ function configBaseServeur() {
                     '#9146FF',
 
                 footer:
-                    'LE REFUGE FR • Twitch',
+                    'ORYUM SYSTEMS • Twitch',
 
                 buttonLabel:
                     'Regarder le live',
@@ -4177,7 +4177,7 @@ client.on(
                         )
 
                         .setPlaceholder(
-                            'Ex : Le Refuge'
+                            'Ex : Communauté Gaming'
                         )
 
                         .setValue(
@@ -8351,6 +8351,25 @@ client.on(
                                     config.welcome.goodbyeShowAvatar
                                         ? ButtonStyle.Success
                                         : ButtonStyle.Secondary
+                                ),
+
+
+                            new ButtonBuilder()
+
+                                .setCustomId(
+                                    'admin_back'
+                                )
+
+                                .setLabel(
+                                    'Retour'
+                                )
+
+                                .setEmoji(
+                                    '⬅️'
+                                )
+
+                                .setStyle(
+                                    ButtonStyle.Secondary
                                 )
 
                         );
@@ -8387,7 +8406,7 @@ client.on(
                                 )
 
                                 .setLabel(
-                                    'Retirer'
+                                    'Retirer image arrivée'
                                 )
 
                                 .setStyle(
@@ -8421,7 +8440,7 @@ client.on(
                                 )
 
                                 .setLabel(
-                                    'Retirer'
+                                    'Retirer image départ'
                                 )
 
                                 .setStyle(
@@ -8446,8 +8465,7 @@ client.on(
                         ligne2,
                         ligne3,
                         ligne4,
-                        ligne5,
-                        creerLigneRetourAdmin()
+                        ligne5
                     ]
 
                 });
