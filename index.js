@@ -154,6 +154,9 @@ function configBaseServeur() {
                 buttonLabel:
                     'Ouvrir un ticket',
 
+                buttonStyle:
+                    'Primary',
+
                 color:
                     '#F47B20',
 
@@ -634,6 +637,27 @@ function couleurValide(
 
 
     return fallback;
+
+}
+
+
+// ======================================================
+// STYLE BOUTON DISCORD
+// ======================================================
+
+function styleBoutonDiscord(
+    style,
+    fallback = ButtonStyle.Primary
+) {
+
+    const styles = {
+        Primary: ButtonStyle.Primary,
+        Secondary: ButtonStyle.Secondary,
+        Success: ButtonStyle.Success,
+        Danger: ButtonStyle.Danger
+    };
+
+    return styles[style] ?? fallback;
 
 }
 
@@ -1532,6 +1556,22 @@ function creerEmbedConfigTickets(
 
                 value:
                     `${nombreStaff}`,
+
+                inline:
+                    true
+            },
+
+            {
+                name:
+                    '🎨 Couleur bouton',
+
+                value:
+                    ({
+                        Primary: '🔵 Bleu',
+                        Secondary: '⚫ Gris',
+                        Success: '🟢 Vert',
+                        Danger: '🔴 Rouge'
+                    })[config.tickets.panel.buttonStyle] || '🔵 Bleu',
 
                 inline:
                     true
@@ -4852,7 +4892,13 @@ client.on(
                                 .setCustomId('ticket_panel_logo_remove')
                                 .setLabel('Retirer logo')
                                 .setEmoji('🗑️')
-                                .setStyle(ButtonStyle.Danger)
+                                .setStyle(ButtonStyle.Danger),
+
+                            new ButtonBuilder()
+                                .setCustomId('ticket_button_color')
+                                .setLabel('Couleur bouton')
+                                .setEmoji('🎨')
+                                .setStyle(ButtonStyle.Secondary)
                         );
 
 
@@ -4878,6 +4924,117 @@ client.on(
 
                 return;
 
+            }
+
+
+            // ==================================================
+            // COULEUR DU BOUTON PUBLIC DES TICKETS
+            // ==================================================
+
+            if (
+                interaction.isButton() &&
+                interaction.customId === 'ticket_button_color'
+            ) {
+
+                const config =
+                    chargerConfigServeur(
+                        interaction.guild.id
+                    );
+
+                const menu =
+                    new StringSelectMenuBuilder()
+                        .setCustomId('ticket_button_color_select')
+                        .setPlaceholder('Choisir la couleur du bouton')
+                        .addOptions(
+                            {
+                                label: 'Bleu',
+                                description: 'Style Primary de Discord',
+                                value: 'Primary',
+                                emoji: '🔵',
+                                default: (config.tickets.panel.buttonStyle || 'Primary') === 'Primary'
+                            },
+                            {
+                                label: 'Gris',
+                                description: 'Style Secondary de Discord',
+                                value: 'Secondary',
+                                emoji: '⚫',
+                                default: config.tickets.panel.buttonStyle === 'Secondary'
+                            },
+                            {
+                                label: 'Vert',
+                                description: 'Style Success de Discord',
+                                value: 'Success',
+                                emoji: '🟢',
+                                default: config.tickets.panel.buttonStyle === 'Success'
+                            },
+                            {
+                                label: 'Rouge',
+                                description: 'Style Danger de Discord',
+                                value: 'Danger',
+                                emoji: '🔴',
+                                default: config.tickets.panel.buttonStyle === 'Danger'
+                            }
+                        );
+
+                await interaction.reply({
+                    content:
+                        '🎨 Choisis la couleur du bouton **Ouvrir un ticket** :',
+                    components: [
+                        new ActionRowBuilder()
+                            .addComponents(menu)
+                    ],
+                    flags: MessageFlags.Ephemeral
+                });
+
+                return;
+            }
+
+
+            if (
+                interaction.isStringSelectMenu() &&
+                interaction.customId === 'ticket_button_color_select'
+            ) {
+
+                const config =
+                    chargerConfigServeur(
+                        interaction.guild.id
+                    );
+
+                const style = interaction.values[0];
+
+                if (
+                    !['Primary', 'Secondary', 'Success', 'Danger']
+                        .includes(style)
+                ) {
+                    await interaction.update({
+                        content: '❌ Couleur invalide.',
+                        components: []
+                    });
+                    return;
+                }
+
+                config.tickets.panel.buttonStyle = style;
+
+                sauvegarderConfigServeur(
+                    interaction.guild.id,
+                    config
+                );
+
+                const noms = {
+                    Primary: '🔵 Bleu',
+                    Secondary: '⚫ Gris',
+                    Success: '🟢 Vert',
+                    Danger: '🔴 Rouge'
+                };
+
+                await interaction.update({
+                    content:
+                        `✅ Couleur du bouton enregistrée : **${noms[style]}**.\n` +
+                        'Elle sera utilisée lors de la prochaine création du panneau avec `/ticket-panel`.',
+                    components: []
+                });
+
+                return;
             }
 
 
@@ -6784,7 +6941,10 @@ client.on(
                         )
 
                         .setStyle(
-                            ButtonStyle.Primary
+                            styleBoutonDiscord(
+                                config.tickets.panel.buttonStyle,
+                                ButtonStyle.Primary
+                            )
                         );
 
 
