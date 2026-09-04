@@ -3430,6 +3430,32 @@ client.on(
 
 
 // ======================================================
+// SUPPRESSION AUTOMATIQUE DES RÉPONSES ÉPHÉMÈRES
+// ======================================================
+
+function programmerSuppressionEphemere(
+    interaction,
+    delai = 15000
+) {
+
+    setTimeout(
+        async () => {
+
+            try {
+                await interaction.deleteReply();
+            }
+            catch (_) {
+                // Réponse déjà supprimée, expirée ou remplacée.
+            }
+
+        },
+        delai
+    );
+
+}
+
+
+// ======================================================
 // DÉBUT DES INTERACTIONS
 // ======================================================
 
@@ -3498,6 +3524,7 @@ client.on(
                             MessageFlags.Ephemeral
 
                     });
+                    programmerSuppressionEphemere(interaction, 15000);
 
                 }
 
@@ -3539,6 +3566,7 @@ client.on(
                             MessageFlags.Ephemeral
 
                     });
+                    programmerSuppressionEphemere(interaction, 15000);
 
 
                     return;
@@ -3735,6 +3763,7 @@ client.on(
                         content: '❌ ORYUM SYSTEMS est réservé au Staff autorisé sur ce serveur.',
                         flags: MessageFlags.Ephemeral
                     });
+                    programmerSuppressionEphemere(interaction, 15000);
                     return;
                 }
 
@@ -3889,6 +3918,7 @@ client.on(
                         MessageFlags.Ephemeral
 
                 });
+                programmerSuppressionEphemere(interaction, 30000);
 
 
                 return;
@@ -4268,6 +4298,7 @@ client.on(
                         MessageFlags.Ephemeral
 
                 });
+                programmerSuppressionEphemere(interaction, 15000);
 
 
                 return;
@@ -4319,6 +4350,7 @@ client.on(
                         MessageFlags.Ephemeral
 
                 });
+                programmerSuppressionEphemere(interaction, 15000);
 
 
                 return;
@@ -4370,6 +4402,7 @@ client.on(
                         MessageFlags.Ephemeral
 
                 });
+                programmerSuppressionEphemere(interaction, 15000);
 
 
                 return;
@@ -4412,6 +4445,7 @@ client.on(
                         MessageFlags.Ephemeral
 
                 });
+                programmerSuppressionEphemere(interaction, 15000);
 
 
                 return;
@@ -4454,6 +4488,7 @@ client.on(
                         MessageFlags.Ephemeral
 
                 });
+                programmerSuppressionEphemere(interaction, 15000);
 
 
                 return;
@@ -4802,6 +4837,7 @@ client.on(
                         MessageFlags.Ephemeral
 
                 });
+                programmerSuppressionEphemere(interaction, 30000);
 
 
                 return;
@@ -4903,6 +4939,7 @@ client.on(
                         MessageFlags.Ephemeral
 
                 });
+                programmerSuppressionEphemere(interaction, 30000);
 
 
                 return;
@@ -5000,6 +5037,7 @@ client.on(
                         MessageFlags.Ephemeral
 
                 });
+                programmerSuppressionEphemere(interaction, 30000);
 
 
                 return;
@@ -5141,6 +5179,7 @@ client.on(
                         MessageFlags.Ephemeral
 
                 });
+                programmerSuppressionEphemere(interaction, 15000);
 
 
                 return;
@@ -5183,6 +5222,7 @@ client.on(
                             MessageFlags.Ephemeral
 
                     });
+                    programmerSuppressionEphemere(interaction, 15000);
 
 
                     return;
@@ -5257,6 +5297,7 @@ client.on(
                         MessageFlags.Ephemeral
 
                 });
+                programmerSuppressionEphemere(interaction, 30000);
 
 
                 return;
@@ -5522,6 +5563,7 @@ client.on(
                         MessageFlags.Ephemeral
 
                 });
+                programmerSuppressionEphemere(interaction, 30000);
 
 
                 return;
@@ -5749,6 +5791,7 @@ client.on(
                             MessageFlags.Ephemeral
 
                     });
+                    programmerSuppressionEphemere(interaction, 15000);
 
 
                     return;
@@ -5813,6 +5856,7 @@ client.on(
                         MessageFlags.Ephemeral
 
                 });
+                programmerSuppressionEphemere(interaction, 30000);
 
 
                 return;
@@ -6186,6 +6230,7 @@ client.on(
                         MessageFlags.Ephemeral
 
                 });
+                programmerSuppressionEphemere(interaction, 15000);
 
 
                 return;
@@ -6445,6 +6490,7 @@ client.on(
                         MessageFlags.Ephemeral
 
                 });
+                programmerSuppressionEphemere(interaction, 15000);
 
 
                 return;
@@ -6484,6 +6530,7 @@ client.on(
                             MessageFlags.Ephemeral
 
                     });
+                    programmerSuppressionEphemere(interaction, 15000);
 
 
                     return;
@@ -6517,6 +6564,7 @@ client.on(
                             MessageFlags.Ephemeral
 
                     });
+                    programmerSuppressionEphemere(interaction, 15000);
 
 
                     return;
@@ -6609,6 +6657,7 @@ client.on(
                         MessageFlags.Ephemeral
 
                 });
+                programmerSuppressionEphemere(interaction, 15000);
 
 
                 return;
@@ -6652,6 +6701,7 @@ client.on(
                             MessageFlags.Ephemeral
 
                     });
+                    programmerSuppressionEphemere(interaction, 15000);
 
 
                     return;
@@ -6729,6 +6779,7 @@ client.on(
                         MessageFlags.Ephemeral
 
                 });
+                programmerSuppressionEphemere(interaction, 30000);
 
 
                 return;
@@ -6777,6 +6828,7 @@ client.on(
                     await interaction.editReply(
                         '❌ Type de ticket introuvable.'
                     );
+                    programmerSuppressionEphemere(interaction, 15000);
 
 
                     return;
@@ -6797,6 +6849,7 @@ client.on(
                     await interaction.editReply(
                         '❌ Aucune catégorie d’ouverture n’est configurée pour ce type de ticket.'
                     );
+                    programmerSuppressionEphemere(interaction, 15000);
 
 
                     return;
@@ -6829,6 +6882,7 @@ client.on(
                     await interaction.editReply(
                         `❌ Tu possèdes déjà un ticket ouvert : ${ticketExistant}`
                     );
+                    programmerSuppressionEphemere(interaction, 15000);
 
 
                     return;
@@ -6865,6 +6919,7 @@ client.on(
                     await interaction.editReply(
                         '❌ La catégorie d’ouverture configurée pour ce type de ticket est introuvable.'
                     );
+                    programmerSuppressionEphemere(interaction, 15000);
 
 
                     return;
@@ -7165,18 +7220,7 @@ client.on(
                 await interaction.editReply(
                     `✅ Ton ticket a été créé : ${ticketChannel}`
                 );
-
-                // Supprime automatiquement la confirmation éphémère
-                // afin de ne pas laisser de message temporaire sous le panel.
-                setTimeout(
-                    async () => {
-                        try {
-                            await interaction.deleteReply();
-                        }
-                        catch (_) {}
-                    },
-                    10000
-                );
+                programmerSuppressionEphemere(interaction, 15000);
 
 
                 return;
@@ -7223,6 +7267,7 @@ client.on(
                             MessageFlags.Ephemeral
 
                     });
+                    programmerSuppressionEphemere(interaction, 15000);
 
 
                     return;
@@ -7277,6 +7322,7 @@ client.on(
                             MessageFlags.Ephemeral
 
                     });
+                    programmerSuppressionEphemere(interaction, 15000);
 
 
                     return;
@@ -7316,6 +7362,7 @@ client.on(
                                 MessageFlags.Ephemeral
 
                         });
+                        programmerSuppressionEphemere(interaction, 15000);
 
                     }
 
@@ -7330,6 +7377,7 @@ client.on(
                                 MessageFlags.Ephemeral
 
                         });
+                        programmerSuppressionEphemere(interaction, 15000);
 
                     }
 
@@ -7371,6 +7419,7 @@ client.on(
                             MessageFlags.Ephemeral
 
                     });
+                    programmerSuppressionEphemere(interaction, 15000);
 
 
                     return;
@@ -7397,6 +7446,7 @@ client.on(
                             MessageFlags.Ephemeral
 
                     });
+                    programmerSuppressionEphemere(interaction, 15000);
 
 
                     return;
@@ -7434,6 +7484,7 @@ client.on(
                             MessageFlags.Ephemeral
 
                     });
+                    programmerSuppressionEphemere(interaction, 15000);
 
 
                     return;
@@ -7580,6 +7631,7 @@ client.on(
                         MessageFlags.Ephemeral
 
                 });
+                programmerSuppressionEphemere(interaction, 15000);
 
 
                 return;
@@ -7623,6 +7675,7 @@ client.on(
                             MessageFlags.Ephemeral
 
                     });
+                    programmerSuppressionEphemere(interaction, 15000);
 
 
                     return;
@@ -7677,6 +7730,7 @@ client.on(
                             MessageFlags.Ephemeral
 
                     });
+                    programmerSuppressionEphemere(interaction, 15000);
 
 
                     return;
@@ -7766,6 +7820,7 @@ client.on(
                     await interaction.editReply(
                         '❌ Impossible de générer le transcript.'
                     );
+                    programmerSuppressionEphemere(interaction, 15000);
 
 
                     return;
@@ -8118,6 +8173,7 @@ client.on(
                 await interaction.editReply(
                     '✅ Ticket fermé.'
                 );
+                programmerSuppressionEphemere(interaction, 15000);
 
 
 // ==================================================
@@ -8525,6 +8581,7 @@ client.on(
                         MessageFlags.Ephemeral
 
                 });
+                programmerSuppressionEphemere(interaction, 15000);
 
 
                 return;
@@ -8569,6 +8626,7 @@ client.on(
                         MessageFlags.Ephemeral
 
                 });
+                programmerSuppressionEphemere(interaction, 15000);
 
 
                 return;
@@ -8628,6 +8686,7 @@ client.on(
                         MessageFlags.Ephemeral
 
                 });
+                programmerSuppressionEphemere(interaction, 30000);
 
 
                 return;
@@ -8729,6 +8788,7 @@ client.on(
                         MessageFlags.Ephemeral
 
                 });
+                programmerSuppressionEphemere(interaction, 30000);
 
 
                 return;
@@ -8996,6 +9056,7 @@ client.on(
                         MessageFlags.Ephemeral
 
                 });
+                programmerSuppressionEphemere(interaction, 15000);
 
 
                 return;
@@ -9221,6 +9282,7 @@ client.on(
                         MessageFlags.Ephemeral
 
                 });
+                programmerSuppressionEphemere(interaction, 15000);
 
 
                 return;
@@ -9265,6 +9327,7 @@ client.on(
                         MessageFlags.Ephemeral
 
                 });
+                programmerSuppressionEphemere(interaction, 15000);
 
 
                 return;
@@ -9309,6 +9372,7 @@ client.on(
                         MessageFlags.Ephemeral
 
                 });
+                programmerSuppressionEphemere(interaction, 15000);
 
 
                 return;
@@ -9360,6 +9424,7 @@ client.on(
                         MessageFlags.Ephemeral
 
                 });
+                programmerSuppressionEphemere(interaction, 15000);
 
 
                 return;
@@ -9411,6 +9476,7 @@ client.on(
                         MessageFlags.Ephemeral
 
                 });
+                programmerSuppressionEphemere(interaction, 15000);
 
 
                 return;
@@ -9453,6 +9519,7 @@ client.on(
                         MessageFlags.Ephemeral
 
                 });
+                programmerSuppressionEphemere(interaction, 15000);
 
 
                 return;
@@ -9495,6 +9562,7 @@ client.on(
                         MessageFlags.Ephemeral
 
                 });
+                programmerSuppressionEphemere(interaction, 15000);
 
 
                 return;
@@ -9650,6 +9718,7 @@ client.on(
                         MessageFlags.Ephemeral
 
                 });
+                programmerSuppressionEphemere(interaction, 30000);
 
 
                 return;
@@ -9863,6 +9932,7 @@ client.on(
                         MessageFlags.Ephemeral
 
                 });
+                programmerSuppressionEphemere(interaction, 15000);
 
 
                 return;
@@ -9899,6 +9969,7 @@ client.on(
                             MessageFlags.Ephemeral
 
                     });
+                    programmerSuppressionEphemere(interaction, 15000);
 
 
                     return;
@@ -10289,6 +10360,7 @@ client.on(
                         MessageFlags.Ephemeral
 
                 });
+                programmerSuppressionEphemere(interaction, 15000);
 
 
                 return;
@@ -10353,6 +10425,7 @@ client.on(
                             MessageFlags.Ephemeral
 
                     });
+                    programmerSuppressionEphemere(interaction, 15000);
 
 
                     return;
@@ -10434,6 +10507,7 @@ client.on(
                             MessageFlags.Ephemeral
 
                     });
+                    programmerSuppressionEphemere(interaction, 15000);
 
 
                     return;
@@ -10479,6 +10553,7 @@ client.on(
                         MessageFlags.Ephemeral
 
                 });
+                programmerSuppressionEphemere(interaction, 30000);
 
 
                 return;
@@ -10599,6 +10674,7 @@ client.on(
                             MessageFlags.Ephemeral
 
                     });
+                    programmerSuppressionEphemere(interaction, 15000);
 
 
                     return;
@@ -10642,6 +10718,7 @@ client.on(
                             MessageFlags.Ephemeral
 
                     });
+                    programmerSuppressionEphemere(interaction, 15000);
 
 
                     return;
@@ -10856,6 +10933,7 @@ client.on(
                             MessageFlags.Ephemeral
 
                     });
+                    programmerSuppressionEphemere(interaction, 15000);
 
 
                     return;
@@ -11100,6 +11178,7 @@ client.on(
                         MessageFlags.Ephemeral
 
                 });
+                programmerSuppressionEphemere(interaction, 30000);
 
 
                 return;
@@ -11251,6 +11330,7 @@ client.on(
                         await interaction.editReply(
                             '❌ Chaîne Twitch introuvable.'
                         );
+                        programmerSuppressionEphemere(interaction, 15000);
 
 
                         return;
@@ -11306,6 +11386,7 @@ client.on(
                     await interaction.editReply(
                         `✅ **${user.display_name || user.login}** est maintenant surveillé sur **${interaction.guild.name}**.`
                     );
+                    programmerSuppressionEphemere(interaction, 15000);
 
                 }
 
@@ -11320,6 +11401,7 @@ client.on(
                     await interaction.editReply(
                         `❌ Impossible d'ajouter cette chaîne Twitch.\n\`${error.message}\``
                     );
+                    programmerSuppressionEphemere(interaction, 15000);
 
                 }
 
@@ -11365,6 +11447,7 @@ client.on(
                             MessageFlags.Ephemeral
 
                     });
+                    programmerSuppressionEphemere(interaction, 15000);
 
 
                     return;
@@ -11440,6 +11523,7 @@ client.on(
                         MessageFlags.Ephemeral
 
                 });
+                programmerSuppressionEphemere(interaction, 30000);
 
 
                 return;
@@ -11843,6 +11927,7 @@ client.on(
                         MessageFlags.Ephemeral
 
                 });
+                programmerSuppressionEphemere(interaction, 15000);
 
 
                 return;
@@ -11925,6 +12010,7 @@ client.on(
                     await interaction.editReply(
                         `✅ Vérification Twitch effectuée pour **${interaction.guild.name}**.`
                     );
+                    programmerSuppressionEphemere(interaction, 15000);
 
                 }
 
@@ -11939,6 +12025,7 @@ client.on(
                     await interaction.editReply(
                         `❌ Erreur Twitch : \`${error.message}\``
                     );
+                    programmerSuppressionEphemere(interaction, 15000);
 
                 }
 
