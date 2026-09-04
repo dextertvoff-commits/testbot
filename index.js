@@ -158,7 +158,10 @@ function configBaseServeur() {
                     '#F47B20',
 
                 footer:
-                    'ORYUM SYSTEMS • Support'
+                    'ORYUM SYSTEMS • Support',
+
+                thumbnailUrl:
+                    ''
 
             },
 
@@ -1814,6 +1817,10 @@ const attenteImageApparence =
     new Map();
 
 
+const attenteImageTicketPanel =
+    new Map();
+
+
 // ======================================================
 // TWITCH
 // ======================================================
@@ -3275,6 +3282,73 @@ client.on(
 
             return;
 
+        }
+
+
+        // ==================================================
+        // LOGO DU PANNEAU TICKETS
+        // ==================================================
+
+        const attenteTicketPanel =
+            attenteImageTicketPanel.get(cle);
+
+        if (
+            attenteTicketPanel &&
+            attenteTicketPanel.channelId === message.channel.id
+        ) {
+
+            if (Date.now() > attenteTicketPanel.expiresAt) {
+                attenteImageTicketPanel.delete(cle);
+                await message.reply(
+                    '❌ Temps écoulé. Recommence depuis `/bot-panel`.'
+                );
+                return;
+            }
+
+            const attachment =
+                message.attachments.first();
+
+            if (!attachment) {
+                await message.reply('❌ Tu dois envoyer une image.');
+                return;
+            }
+
+            const contentType =
+                attachment.contentType || '';
+
+            const extensionImage =
+                /\.(png|jpe?g|gif|webp)$/i.test(
+                    attachment.name || attachment.url
+                );
+
+            if (
+                !contentType.startsWith('image/') &&
+                !extensionImage
+            ) {
+                await message.reply(
+                    '❌ Le fichier envoyé n’est pas une image.'
+                );
+                return;
+            }
+
+            const config =
+                chargerConfigServeur(message.guild.id);
+
+            config.tickets.panel.thumbnailUrl =
+                attachment.url;
+
+            sauvegarderConfigServeur(
+                message.guild.id,
+                config
+            );
+
+            attenteImageTicketPanel.delete(cle);
+
+            await message.reply(
+                '✅ Logo du panneau tickets enregistré.'
+            );
+
+            return;
         }
 
 
@@ -4765,6 +4839,23 @@ client.on(
                         );
 
 
+                const ligne3 =
+                    new ActionRowBuilder()
+                        .addComponents(
+                            new ButtonBuilder()
+                                .setCustomId('ticket_panel_logo')
+                                .setLabel('Logo panneau')
+                                .setEmoji('🖼️')
+                                .setStyle(ButtonStyle.Secondary),
+
+                            new ButtonBuilder()
+                                .setCustomId('ticket_panel_logo_remove')
+                                .setLabel('Retirer logo')
+                                .setEmoji('🗑️')
+                                .setStyle(ButtonStyle.Danger)
+                        );
+
+
                 await interaction.update({
 
                     embeds: [
@@ -4778,6 +4869,7 @@ client.on(
                     components: [
                         ligne1,
                         ligne2,
+                        ligne3,
                         creerLigneRetourAdmin()
                     ]
 
@@ -4786,6 +4878,64 @@ client.on(
 
                 return;
 
+            }
+
+
+            // ==================================================
+            // LOGO / THUMBNAIL DU PANNEAU TICKETS
+            // ==================================================
+
+            if (
+                interaction.isButton() &&
+                interaction.customId === 'ticket_panel_logo'
+            ) {
+
+                const cle =
+                    `${interaction.guild.id}:${interaction.user.id}`;
+
+                attenteImageTicketPanel.set(
+                    cle,
+                    {
+                        channelId: interaction.channel.id,
+                        expiresAt: Date.now() + 120000
+                    }
+                );
+
+                await interaction.reply({
+                    content:
+                        '🖼️ Envoie maintenant le **logo du panneau tickets** dans ce salon.\n' +
+                        'Il sera affiché **en haut à droite** de l’embed.\n' +
+                        'Tu as **2 minutes**.',
+                    flags: MessageFlags.Ephemeral
+                });
+
+                programmerSuppressionEphemere(interaction, 30000);
+                return;
+            }
+
+
+            if (
+                interaction.isButton() &&
+                interaction.customId === 'ticket_panel_logo_remove'
+            ) {
+
+                const config =
+                    chargerConfigServeur(interaction.guild.id);
+
+                config.tickets.panel.thumbnailUrl = '';
+
+                sauvegarderConfigServeur(
+                    interaction.guild.id,
+                    config
+                );
+
+                await interaction.reply({
+                    content: '✅ Logo du panneau tickets supprimé.',
+                    flags: MessageFlags.Ephemeral
+                });
+
+                programmerSuppressionEphemere(interaction, 15000);
+                return;
             }
 
 
@@ -6603,6 +6753,17 @@ client.on(
                             config.tickets.panel.footer
 
                     });
+
+                }
+
+
+                if (
+                    config.tickets.panel.thumbnailUrl
+                ) {
+
+                    embed.setThumbnail(
+                        config.tickets.panel.thumbnailUrl
+                    );
 
                 }
 
