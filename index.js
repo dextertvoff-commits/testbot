@@ -134,7 +134,7 @@ function configBaseServeur() {
             panel: {
 
                 title:
-                    '🎫 SUPPORT // LE REFUGE',
+                    '🎫 SUPPORT',
 
                 description:
                     '**Besoin d’aide ?**\n\nClique sur le bouton pour ouvrir une demande.',
@@ -166,7 +166,7 @@ function configBaseServeur() {
                     '#F47B20',
 
                 footer:
-                    'LE REFUGE FR • Support',
+                    'Support',
 
                 showAvatar:
                     true
@@ -189,7 +189,7 @@ function configBaseServeur() {
                 '#F47B20',
 
             footer:
-                'LE REFUGE FR • Annonce'
+                'Annonce'
 
         },
 
@@ -224,7 +224,7 @@ function configBaseServeur() {
                     '#9146FF',
 
                 footer:
-                    'LE REFUGE FR • Twitch',
+                    'STREAMS • Twitch',
 
                 buttonLabel:
                     'Regarder le live',
@@ -953,7 +953,7 @@ function obtenirNomPublicServeur(
 
         client.user?.username ||
 
-        'BOTTEST'
+        'ORYUM SYSTEMS'
 
     );
 
@@ -1054,7 +1054,7 @@ async function appliquerSurnomServeur(
 
                 await membreBot.setNickname(
                     surnom,
-                    'Apparence BOTTEST par serveur'
+                    'Apparence ORYUM SYSTEMS par serveur'
                 );
 
             }
@@ -1067,7 +1067,7 @@ async function appliquerSurnomServeur(
 
             await membreBot.setNickname(
                 null,
-                'Suppression du surnom BOTTEST'
+                'Suppression du surnom ORYUM SYSTEMS'
             );
 
         }
@@ -1174,7 +1174,7 @@ async function obtenirWebhookSalon(
                     wh.owner?.id ===
                         client.user.id &&
                     wh.name ===
-                        'BOTTEST-WEBHOOK'
+                        'ORYUM SYSTEMS-WEBHOOK'
             );
 
 
@@ -1186,10 +1186,10 @@ async function obtenirWebhookSalon(
                 await salon.createWebhook({
 
                     name:
-                        'BOTTEST-WEBHOOK',
+                        'ORYUM SYSTEMS-WEBHOOK',
 
                     reason:
-                        'Apparence BOTTEST personnalisée par serveur'
+                        'Apparence ORYUM SYSTEMS personnalisée par serveur'
 
                 });
 
@@ -1364,7 +1364,7 @@ function creerEmbedConfigApparence(
             )
             : (
                 config.appearance.nickname ||
-                'BOTTEST'
+                'ORYUM SYSTEMS'
             );
 
 
@@ -2847,7 +2847,7 @@ client.once(
         );
 
         console.log(
-            '🟠 BOTTEST // VERSION CORRIGÉE'
+            '🟠 ORYUM SYSTEMS // VERSION CORRIGÉE'
         );
 
         console.log(
@@ -3680,7 +3680,7 @@ client.on(
                         )
 
                         .setTitle(
-                            '⚙️ BOTTEST // PANNEAU ADMIN'
+                            '⚙️ ORYUM SYSTEMS // PANNEAU ADMIN'
                         )
 
                         .setDescription(
@@ -4020,7 +4020,7 @@ client.on(
                         )
 
                         .setPlaceholder(
-                            'Ex : Le Refuge FR'
+                            'Ex : ORYUM SYSTEMS'
                         )
 
                         .setStyle(
@@ -12145,7 +12145,7 @@ process.on(
 async function demarrerBot() {
 
     console.log(
-        '🟠 BOTTEST // DÉMARRAGE'
+        '🟠 ORYUM SYSTEMS // DÉMARRAGE'
     );
 
 
