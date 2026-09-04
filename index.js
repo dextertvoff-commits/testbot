@@ -7166,6 +7166,18 @@ client.on(
                     `✅ Ton ticket a été créé : ${ticketChannel}`
                 );
 
+                // Supprime automatiquement la confirmation éphémère
+                // afin de ne pas laisser de message temporaire sous le panel.
+                setTimeout(
+                    async () => {
+                        try {
+                            await interaction.deleteReply();
+                        }
+                        catch (_) {}
+                    },
+                    10000
+                );
+
 
                 return;
 
