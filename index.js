@@ -290,6 +290,24 @@ function configBaseServeur() {
             welcomeImageUrl:
                 '',
 
+            welcomeDmEnabled:
+                false,
+
+            welcomeDmTitle:
+                '👋 Bienvenue sur {server}',
+
+            welcomeDmMessage:
+                'Ravi de t’avoir parmi nous !',
+
+            welcomeDmColor:
+                '#F47B20',
+
+            welcomeDmShowAvatar:
+                false,
+
+            welcomeDmImageUrl:
+                '',
+
             goodbyeTitle:
                 'Un membre vient de partir... 😢',
 
@@ -1683,79 +1701,62 @@ function creerEmbedConfigBienvenue(
         );
 
 
-    const embed =
-        new EmbedBuilder()
+    return new EmbedBuilder()
 
-            .setColor(
-                '#F47B20'
-            )
+        .setColor(
+            '#F47B20'
+        )
 
-            .setTitle(
-                '👋 BIENVENUE / DÉPART'
-            )
+        .setTitle(
+            '👋 BIENVENUE / DÉPART'
+        )
 
-            .setDescription(
-                'Configure les messages automatiques d’arrivée et de départ.'
-            )
+        .setDescription(
+            'Choisis la partie que tu souhaites configurer.'
+        )
 
-            .addFields(
+        .addFields(
 
-                {
-                    name:
-                        '🎉 Arrivées',
+            {
+                name:
+                    '🎉 Message public d’arrivée',
 
-                    value:
-                        config.welcome.welcomeEnabled
-                            ? '✅ Activées'
-                            : '❌ Désactivées',
+                value:
+                    config.welcome.welcomeEnabled
+                        ? `✅ Activé${config.welcome.welcomeChannelId ? ` • <#${config.welcome.welcomeChannelId}>` : ' • Salon non configuré'}`
+                        : '❌ Désactivé',
 
-                    inline:
-                        true
-                },
+                inline:
+                    false
+            },
 
-                {
-                    name:
-                        '👋 Départs',
+            {
+                name:
+                    '👋 Message public de départ',
 
-                    value:
-                        config.welcome.goodbyeEnabled
-                            ? '✅ Activés'
-                            : '❌ Désactivés',
+                value:
+                    config.welcome.goodbyeEnabled
+                        ? `✅ Activé${config.welcome.goodbyeChannelId ? ` • <#${config.welcome.goodbyeChannelId}>` : ' • Salon non configuré'}`
+                        : '❌ Désactivé',
 
-                    inline:
-                        true
-                },
+                inline:
+                    false
+            },
 
-                {
-                    name:
-                        '📍 Salon arrivée',
+            {
+                name:
+                    '✉️ Message privé de bienvenue',
 
-                    value:
-                        config.welcome.welcomeChannelId
-                            ? `<#${config.welcome.welcomeChannelId}>`
-                            : '❌ Non configuré',
+                value:
+                    config.welcome.welcomeDmEnabled
+                        ? '✅ Activé'
+                        : '❌ Désactivé',
 
-                    inline:
-                        false
-                },
+                inline:
+                    false
+            }
 
-                {
-                    name:
-                        '📍 Salon départ',
-
-                    value:
-                        config.welcome.goodbyeChannelId
-                            ? `<#${config.welcome.goodbyeChannelId}>`
-                            : '❌ Non configuré',
-
-                    inline:
-                        false
-                }
-
-            );
-
-
-    return embed;
+        );
 
 }
 
@@ -2909,157 +2910,206 @@ client.on(
             );
 
 
-        if (
-            !config.welcome.welcomeEnabled
-        ) {
-
-            return;
-
-        }
-
+        // --------------------------------------------------
+        // MESSAGE PUBLIC D'ARRIVÉE
+        // --------------------------------------------------
 
         if (
-            !config.welcome.welcomeChannelId
+            config.welcome.welcomeEnabled &&
+            config.welcome.welcomeChannelId
         ) {
 
-            return;
+            const salon =
 
-        }
+                member.guild.channels.cache.get(
+                    config.welcome.welcomeChannelId
+                )
 
+                ||
 
-        const salon =
-
-            member.guild.channels.cache.get(
-                config.welcome.welcomeChannelId
-            )
-
-            ||
-
-            await member.guild.channels.fetch(
-                config.welcome.welcomeChannelId
-            )
-                .catch(
-                    () => null
-                );
-
-
-        if (
-            !salon ||
-            !salon.isTextBased()
-        ) {
-
-            console.log(
-                `⚠️ Salon bienvenue introuvable sur ${member.guild.name}`
-            );
-
-            return;
-
-        }
-
-
-        try {
-
-            const embed =
-                new EmbedBuilder()
-
-                    .setColor(
-                        couleurValide(
-                            config.welcome.welcomeColor,
-                            '#F47B20'
-                        )
-                    )
-
-                    .setTitle(
-
-                        remplacerVariables(
-                            config.welcome.welcomeTitle,
-                            member
-                        )
-
-                    )
-
-                    .setDescription(
-
-                        remplacerVariables(
-                            config.welcome.welcomeMessage,
-                            member
-                        )
-
-                    )
-
-                    .setFooter({
-
-                        text:
-                            `Compte Discord créé il y a ${calculerDuree(member.user.createdAt)}`
-
-                    })
-
-                    .setTimestamp();
+                await member.guild.channels.fetch(
+                    config.welcome.welcomeChannelId
+                )
+                    .catch(
+                        () => null
+                    );
 
 
             if (
-                config.welcome.welcomeShowAvatar
+                salon &&
+                salon.isTextBased()
             ) {
 
-                embed.setThumbnail(
+                try {
 
-                    member.user.displayAvatarURL({
+                    const embed =
+                        new EmbedBuilder()
 
-                        extension:
-                            'png',
+                            .setColor(
+                                couleurValide(
+                                    config.welcome.welcomeColor,
+                                    '#F47B20'
+                                )
+                            )
 
-                        size:
-                            256
+                            .setTitle(
+                                remplacerVariables(
+                                    config.welcome.welcomeTitle,
+                                    member
+                                )
+                            )
 
-                    })
+                            .setDescription(
+                                remplacerVariables(
+                                    config.welcome.welcomeMessage,
+                                    member
+                                )
+                            )
 
-                );
+                            .setFooter({
+                                text:
+                                    `Compte Discord créé il y a ${calculerDuree(member.user.createdAt)}`
+                            })
 
-            }
-
-
-            if (
-                config.welcome.welcomeImageUrl
-            ) {
-
-                embed.setImage(
-                    config.welcome.welcomeImageUrl
-                );
-
-            }
-
-            else {
-
-                appliquerBanniereEmbed(
-                    embed,
-                    member.guild
-                );
-
-            }
+                            .setTimestamp();
 
 
-            await envoyerMessagePersonnalise(
+                    if (
+                        config.welcome.welcomeShowAvatar
+                    ) {
 
-                salon,
+                        embed.setThumbnail(
+                            member.user.displayAvatarURL({
+                                extension: 'png',
+                                size: 256
+                            })
+                        );
 
-                {
+                    }
 
-                    embeds: [
-                        embed
-                    ]
+
+                    if (
+                        config.welcome.welcomeImageUrl
+                    ) {
+
+                        embed.setImage(
+                            config.welcome.welcomeImageUrl
+                        );
+
+                    }
+
+                    else {
+
+                        appliquerBanniereEmbed(
+                            embed,
+                            member.guild
+                        );
+
+                    }
+
+
+                    await envoyerMessagePersonnalise(
+                        salon,
+                        {
+                            embeds: [
+                                embed
+                            ]
+                        }
+                    );
 
                 }
 
-            );
+                catch (error) {
+
+                    console.error(
+                        `❌ Erreur bienvenue publique [${member.guild.name}] :`,
+                        error.message
+                    );
+
+                }
+
+            }
 
         }
 
-        catch (error) {
 
-            console.error(
-                `❌ Erreur bienvenue [${member.guild.name}] :`,
-                error.message
-            );
+        // --------------------------------------------------
+        // MESSAGE PRIVÉ DE BIENVENUE
+        // --------------------------------------------------
+
+        if (
+            config.welcome.welcomeDmEnabled
+        ) {
+
+            try {
+
+                const embedDm =
+                    new EmbedBuilder()
+
+                        .setColor(
+                            couleurValide(
+                                config.welcome.welcomeDmColor,
+                                '#F47B20'
+                            )
+                        )
+
+                        .setTitle(
+                            remplacerVariables(
+                                config.welcome.welcomeDmTitle,
+                                member
+                            )
+                        )
+
+                        .setDescription(
+                            remplacerVariables(
+                                config.welcome.welcomeDmMessage,
+                                member
+                            )
+                        )
+
+                        .setTimestamp();
+
+
+                if (
+                    config.welcome.welcomeDmShowAvatar
+                ) {
+
+                    embedDm.setThumbnail(
+                        member.user.displayAvatarURL({
+                            extension: 'png',
+                            size: 256
+                        })
+                    );
+
+                }
+
+
+                if (
+                    config.welcome.welcomeDmImageUrl
+                ) {
+
+                    embedDm.setImage(
+                        config.welcome.welcomeDmImageUrl
+                    );
+
+                }
+
+
+                await member.send({
+                    embeds: [
+                        embedDm
+                    ]
+                });
+
+            }
+
+            catch (error) {
+
+                console.log(
+                    `⚠️ DM de bienvenue impossible pour ${member.user.tag} : ${error.message}`
+                );
+
+            }
 
         }
 
@@ -3376,6 +3426,16 @@ client.on(
 
             }
 
+            else if (
+                attenteBienvenue.type ===
+                'welcome_dm'
+            ) {
+
+                config.welcome.welcomeDmImageUrl =
+                    attachment.url;
+
+            }
+
             else {
 
                 config.welcome.goodbyeImageUrl =
@@ -3402,7 +3462,12 @@ client.on(
 
                     ? '✅ Image d’arrivée enregistrée.'
 
-                    : '✅ Image de départ enregistrée.'
+                    : attenteBienvenue.type ===
+                        'welcome_dm'
+
+                        ? '✅ Image du DM de bienvenue enregistrée.'
+
+                        : '✅ Image de départ enregistrée.'
 
             );
 
@@ -8694,322 +8759,325 @@ client.on(
                     'admin_bienvenue'
             ) {
 
-                const config =
-                    chargerConfigServeur(
-                        interaction.guild.id
-                    );
-
-
                 const ligne1 =
                     new ActionRowBuilder()
-
                         .addComponents(
 
                             new ButtonBuilder()
-
-                                .setCustomId(
-                                    'welcome_toggle'
-                                )
-
-                                .setLabel(
-                                    config.welcome.welcomeEnabled
-                                        ? 'Désactiver arrivées'
-                                        : 'Activer arrivées'
-                                )
-
-                                .setEmoji(
-                                    config.welcome.welcomeEnabled
-                                        ? '🔴'
-                                        : '🟢'
-                                )
-
-                                .setStyle(
-                                    config.welcome.welcomeEnabled
-                                        ? ButtonStyle.Danger
-                                        : ButtonStyle.Success
-                                ),
-
+                                .setCustomId('welcome_arrival_panel')
+                                .setLabel('Arrivée publique')
+                                .setEmoji('🎉')
+                                .setStyle(ButtonStyle.Primary),
 
                             new ButtonBuilder()
-
-                                .setCustomId(
-                                    'goodbye_toggle'
-                                )
-
-                                .setLabel(
-                                    config.welcome.goodbyeEnabled
-                                        ? 'Désactiver départs'
-                                        : 'Activer départs'
-                                )
-
-                                .setEmoji(
-                                    config.welcome.goodbyeEnabled
-                                        ? '🔴'
-                                        : '🟢'
-                                )
-
-                                .setStyle(
-                                    config.welcome.goodbyeEnabled
-                                        ? ButtonStyle.Danger
-                                        : ButtonStyle.Success
-                                )
-
-                        );
-
-
-                const ligne2 =
-                    new ActionRowBuilder()
-
-                        .addComponents(
+                                .setCustomId('welcome_departure_panel')
+                                .setLabel('Départ public')
+                                .setEmoji('👋')
+                                .setStyle(ButtonStyle.Secondary),
 
                             new ButtonBuilder()
-
-                                .setCustomId(
-                                    'welcome_channel'
-                                )
-
-                                .setLabel(
-                                    'Salon arrivée'
-                                )
-
-                                .setEmoji(
-                                    '📍'
-                                )
-
-                                .setStyle(
-                                    ButtonStyle.Secondary
-                                ),
-
-
-                            new ButtonBuilder()
-
-                                .setCustomId(
-                                    'goodbye_channel'
-                                )
-
-                                .setLabel(
-                                    'Salon départ'
-                                )
-
-                                .setEmoji(
-                                    '📍'
-                                )
-
-                                .setStyle(
-                                    ButtonStyle.Secondary
-                                )
-
-                        );
-
-
-                const ligne3 =
-                    new ActionRowBuilder()
-
-                        .addComponents(
-
-                            new ButtonBuilder()
-
-                                .setCustomId(
-                                    'welcome_style'
-                                )
-
-                                .setLabel(
-                                    'Message arrivée'
-                                )
-
-                                .setEmoji(
-                                    '🎉'
-                                )
-
-                                .setStyle(
-                                    ButtonStyle.Primary
-                                ),
-
-
-                            new ButtonBuilder()
-
-                                .setCustomId(
-                                    'goodbye_style'
-                                )
-
-                                .setLabel(
-                                    'Message départ'
-                                )
-
-                                .setEmoji(
-                                    '👋'
-                                )
-
-                                .setStyle(
-                                    ButtonStyle.Primary
-                                )
-
-                        );
-
-
-                const ligne4 =
-                    new ActionRowBuilder()
-
-                        .addComponents(
-
-                            new ButtonBuilder()
-
-                                .setCustomId(
-                                    'welcome_avatar_toggle'
-                                )
-
-                                .setLabel(
-                                    'Avatar arrivée'
-                                )
-
-                                .setEmoji(
-                                    '👤'
-                                )
-
-                                .setStyle(
-                                    config.welcome.welcomeShowAvatar
-                                        ? ButtonStyle.Success
-                                        : ButtonStyle.Secondary
-                                ),
-
-
-                            new ButtonBuilder()
-
-                                .setCustomId(
-                                    'goodbye_avatar_toggle'
-                                )
-
-                                .setLabel(
-                                    'Avatar départ'
-                                )
-
-                                .setEmoji(
-                                    '👤'
-                                )
-
-                                .setStyle(
-                                    config.welcome.goodbyeShowAvatar
-                                        ? ButtonStyle.Success
-                                        : ButtonStyle.Secondary
-                                ),
-
-
-                            new ButtonBuilder()
-
-                                .setCustomId(
-                                    'admin_back'
-                                )
-
-                                .setLabel(
-                                    'Retour'
-                                )
-
-                                .setEmoji(
-                                    '⬅️'
-                                )
-
-                                .setStyle(
-                                    ButtonStyle.Secondary
-                                )
-
-                        );
-
-
-                const ligne5 =
-                    new ActionRowBuilder()
-
-                        .addComponents(
-
-                            new ButtonBuilder()
-
-                                .setCustomId(
-                                    'welcome_image'
-                                )
-
-                                .setLabel(
-                                    'Image arrivée'
-                                )
-
-                                .setEmoji(
-                                    '🖼️'
-                                )
-
-                                .setStyle(
-                                    ButtonStyle.Secondary
-                                ),
-
-
-                            new ButtonBuilder()
-
-                                .setCustomId(
-                                    'welcome_image_delete'
-                                )
-
-                                .setLabel(
-                                    'Retirer image arrivée'
-                                )
-
-                                .setStyle(
-                                    ButtonStyle.Danger
-                                ),
-
-
-                            new ButtonBuilder()
-
-                                .setCustomId(
-                                    'goodbye_image'
-                                )
-
-                                .setLabel(
-                                    'Image départ'
-                                )
-
-                                .setEmoji(
-                                    '🖼️'
-                                )
-
-                                .setStyle(
-                                    ButtonStyle.Secondary
-                                ),
-
-
-                            new ButtonBuilder()
-
-                                .setCustomId(
-                                    'goodbye_image_delete'
-                                )
-
-                                .setLabel(
-                                    'Retirer image départ'
-                                )
-
-                                .setStyle(
-                                    ButtonStyle.Danger
-                                )
+                                .setCustomId('welcome_dm_panel')
+                                .setLabel('Bienvenue en DM')
+                                .setEmoji('✉️')
+                                .setStyle(ButtonStyle.Success)
 
                         );
 
 
                 await interaction.update({
-
                     embeds: [
-
                         creerEmbedConfigBienvenue(
                             interaction.guild.id
                         )
-
                     ],
-
                     components: [
                         ligne1,
-                        ligne2,
-                        ligne3,
-                        ligne4,
-                        ligne5
+                        creerLigneRetourAdmin()
                     ]
-
                 });
 
+                return;
+
+            }
+
+
+// ==================================================
+// SOUS-PANEL ARRIVÉE PUBLIQUE
+// ==================================================
+
+            if (
+                interaction.isButton() &&
+                interaction.customId ===
+                    'welcome_arrival_panel'
+            ) {
+
+                const config =
+                    chargerConfigServeur(
+                        interaction.guild.id
+                    );
+
+                const embed =
+                    new EmbedBuilder()
+                        .setColor('#F47B20')
+                        .setTitle('🎉 ARRIVÉE PUBLIQUE')
+                        .setDescription('Configure le message envoyé dans un salon lorsqu’un membre rejoint le serveur.')
+                        .addFields(
+                            {
+                                name: 'État',
+                                value: config.welcome.welcomeEnabled ? '✅ Activé' : '❌ Désactivé',
+                                inline: true
+                            },
+                            {
+                                name: 'Salon',
+                                value: config.welcome.welcomeChannelId ? `<#${config.welcome.welcomeChannelId}>` : '❌ Non configuré',
+                                inline: true
+                            },
+                            {
+                                name: 'Avatar membre',
+                                value: config.welcome.welcomeShowAvatar ? '✅ Affiché' : '❌ Masqué',
+                                inline: true
+                            },
+                            {
+                                name: 'Image',
+                                value: config.welcome.welcomeImageUrl ? '✅ Configurée' : '❌ Aucune',
+                                inline: true
+                            }
+                        );
+
+                const ligne1 =
+                    new ActionRowBuilder().addComponents(
+                        new ButtonBuilder()
+                            .setCustomId('welcome_toggle')
+                            .setLabel(config.welcome.welcomeEnabled ? 'Désactiver' : 'Activer')
+                            .setEmoji(config.welcome.welcomeEnabled ? '🔴' : '🟢')
+                            .setStyle(config.welcome.welcomeEnabled ? ButtonStyle.Danger : ButtonStyle.Success),
+                        new ButtonBuilder()
+                            .setCustomId('welcome_channel')
+                            .setLabel('Salon')
+                            .setEmoji('📍')
+                            .setStyle(ButtonStyle.Secondary),
+                        new ButtonBuilder()
+                            .setCustomId('welcome_style')
+                            .setLabel('Message')
+                            .setEmoji('📝')
+                            .setStyle(ButtonStyle.Primary),
+                        new ButtonBuilder()
+                            .setCustomId('welcome_avatar_toggle')
+                            .setLabel('Avatar')
+                            .setEmoji('👤')
+                            .setStyle(config.welcome.welcomeShowAvatar ? ButtonStyle.Success : ButtonStyle.Secondary)
+                    );
+
+                const ligne2 =
+                    new ActionRowBuilder().addComponents(
+                        new ButtonBuilder()
+                            .setCustomId('welcome_image')
+                            .setLabel('Ajouter image')
+                            .setEmoji('🖼️')
+                            .setStyle(ButtonStyle.Secondary),
+                        new ButtonBuilder()
+                            .setCustomId('welcome_image_delete')
+                            .setLabel('Retirer image')
+                            .setEmoji('🗑️')
+                            .setStyle(ButtonStyle.Danger),
+                        new ButtonBuilder()
+                            .setCustomId('admin_bienvenue')
+                            .setLabel('Retour')
+                            .setEmoji('⬅️')
+                            .setStyle(ButtonStyle.Secondary)
+                    );
+
+                await interaction.update({
+                    embeds: [embed],
+                    components: [ligne1, ligne2]
+                });
+
+                return;
+
+            }
+
+
+// ==================================================
+// SOUS-PANEL DÉPART PUBLIC
+// ==================================================
+
+            if (
+                interaction.isButton() &&
+                interaction.customId ===
+                    'welcome_departure_panel'
+            ) {
+
+                const config =
+                    chargerConfigServeur(
+                        interaction.guild.id
+                    );
+
+                const embed =
+                    new EmbedBuilder()
+                        .setColor('#F47B20')
+                        .setTitle('👋 DÉPART PUBLIC')
+                        .setDescription('Configure le message envoyé dans un salon lorsqu’un membre quitte le serveur.')
+                        .addFields(
+                            {
+                                name: 'État',
+                                value: config.welcome.goodbyeEnabled ? '✅ Activé' : '❌ Désactivé',
+                                inline: true
+                            },
+                            {
+                                name: 'Salon',
+                                value: config.welcome.goodbyeChannelId ? `<#${config.welcome.goodbyeChannelId}>` : '❌ Non configuré',
+                                inline: true
+                            },
+                            {
+                                name: 'Avatar membre',
+                                value: config.welcome.goodbyeShowAvatar ? '✅ Affiché' : '❌ Masqué',
+                                inline: true
+                            },
+                            {
+                                name: 'Image',
+                                value: config.welcome.goodbyeImageUrl ? '✅ Configurée' : '❌ Aucune',
+                                inline: true
+                            }
+                        );
+
+                const ligne1 =
+                    new ActionRowBuilder().addComponents(
+                        new ButtonBuilder()
+                            .setCustomId('goodbye_toggle')
+                            .setLabel(config.welcome.goodbyeEnabled ? 'Désactiver' : 'Activer')
+                            .setEmoji(config.welcome.goodbyeEnabled ? '🔴' : '🟢')
+                            .setStyle(config.welcome.goodbyeEnabled ? ButtonStyle.Danger : ButtonStyle.Success),
+                        new ButtonBuilder()
+                            .setCustomId('goodbye_channel')
+                            .setLabel('Salon')
+                            .setEmoji('📍')
+                            .setStyle(ButtonStyle.Secondary),
+                        new ButtonBuilder()
+                            .setCustomId('goodbye_style')
+                            .setLabel('Message')
+                            .setEmoji('📝')
+                            .setStyle(ButtonStyle.Primary),
+                        new ButtonBuilder()
+                            .setCustomId('goodbye_avatar_toggle')
+                            .setLabel('Avatar')
+                            .setEmoji('👤')
+                            .setStyle(config.welcome.goodbyeShowAvatar ? ButtonStyle.Success : ButtonStyle.Secondary)
+                    );
+
+                const ligne2 =
+                    new ActionRowBuilder().addComponents(
+                        new ButtonBuilder()
+                            .setCustomId('goodbye_image')
+                            .setLabel('Ajouter image')
+                            .setEmoji('🖼️')
+                            .setStyle(ButtonStyle.Secondary),
+                        new ButtonBuilder()
+                            .setCustomId('goodbye_image_delete')
+                            .setLabel('Retirer image')
+                            .setEmoji('🗑️')
+                            .setStyle(ButtonStyle.Danger),
+                        new ButtonBuilder()
+                            .setCustomId('admin_bienvenue')
+                            .setLabel('Retour')
+                            .setEmoji('⬅️')
+                            .setStyle(ButtonStyle.Secondary)
+                    );
+
+                await interaction.update({
+                    embeds: [embed],
+                    components: [ligne1, ligne2]
+                });
+
+                return;
+
+            }
+
+
+// ==================================================
+// SOUS-PANEL BIENVENUE EN DM
+// ==================================================
+
+            if (
+                interaction.isButton() &&
+                interaction.customId ===
+                    'welcome_dm_panel'
+            ) {
+
+                const config =
+                    chargerConfigServeur(
+                        interaction.guild.id
+                    );
+
+                const embed =
+                    new EmbedBuilder()
+                        .setColor('#F47B20')
+                        .setTitle('✉️ BIENVENUE EN MESSAGE PRIVÉ')
+                        .setDescription('Configure le message envoyé directement en DM au nouveau membre.')
+                        .addFields(
+                            {
+                                name: 'État',
+                                value: config.welcome.welcomeDmEnabled ? '✅ Activé' : '❌ Désactivé',
+                                inline: true
+                            },
+                            {
+                                name: 'Avatar membre',
+                                value: config.welcome.welcomeDmShowAvatar ? '✅ Affiché' : '❌ Masqué',
+                                inline: true
+                            },
+                            {
+                                name: 'Image',
+                                value: config.welcome.welcomeDmImageUrl ? '✅ Configurée' : '❌ Aucune',
+                                inline: true
+                            },
+                            {
+                                name: 'Information',
+                                value: 'Le membre doit autoriser les messages privés du serveur pour recevoir ce message.',
+                                inline: false
+                            }
+                        );
+
+                const ligne1 =
+                    new ActionRowBuilder().addComponents(
+                        new ButtonBuilder()
+                            .setCustomId('welcome_dm_toggle')
+                            .setLabel(config.welcome.welcomeDmEnabled ? 'Désactiver' : 'Activer')
+                            .setEmoji(config.welcome.welcomeDmEnabled ? '🔴' : '🟢')
+                            .setStyle(config.welcome.welcomeDmEnabled ? ButtonStyle.Danger : ButtonStyle.Success),
+                        new ButtonBuilder()
+                            .setCustomId('welcome_dm_style')
+                            .setLabel('Message')
+                            .setEmoji('📝')
+                            .setStyle(ButtonStyle.Primary),
+                        new ButtonBuilder()
+                            .setCustomId('welcome_dm_avatar_toggle')
+                            .setLabel('Avatar')
+                            .setEmoji('👤')
+                            .setStyle(config.welcome.welcomeDmShowAvatar ? ButtonStyle.Success : ButtonStyle.Secondary)
+                    );
+
+                const ligne2 =
+                    new ActionRowBuilder().addComponents(
+                        new ButtonBuilder()
+                            .setCustomId('welcome_dm_image')
+                            .setLabel('Ajouter image')
+                            .setEmoji('🖼️')
+                            .setStyle(ButtonStyle.Secondary),
+                        new ButtonBuilder()
+                            .setCustomId('welcome_dm_image_delete')
+                            .setLabel('Retirer image')
+                            .setEmoji('🗑️')
+                            .setStyle(ButtonStyle.Danger),
+                        new ButtonBuilder()
+                            .setCustomId('admin_bienvenue')
+                            .setLabel('Retour')
+                            .setEmoji('⬅️')
+                            .setStyle(ButtonStyle.Secondary)
+                    );
+
+                await interaction.update({
+                    embeds: [embed],
+                    components: [ligne1, ligne2]
+                });
 
                 return;
 
@@ -10040,6 +10108,244 @@ client.on(
                 return;
 
             }
+
+// ==================================================
+// ACTIVER / DÉSACTIVER BIENVENUE EN DM
+// ==================================================
+
+            if (
+                interaction.isButton() &&
+                interaction.customId ===
+                    'welcome_dm_toggle'
+            ) {
+
+                const config =
+                    chargerConfigServeur(
+                        interaction.guild.id
+                    );
+
+                config.welcome.welcomeDmEnabled =
+                    !config.welcome.welcomeDmEnabled;
+
+                sauvegarderConfigServeur(
+                    interaction.guild.id,
+                    config
+                );
+
+                await interaction.reply({
+                    content:
+                        config.welcome.welcomeDmEnabled
+                            ? '✅ Message privé de bienvenue activé.'
+                            : '❌ Message privé de bienvenue désactivé.',
+                    flags:
+                        MessageFlags.Ephemeral
+                });
+                programmerSuppressionEphemere(interaction, 15000);
+
+                return;
+
+            }
+
+
+// ==================================================
+// STYLE BIENVENUE EN DM
+// ==================================================
+
+            if (
+                interaction.isButton() &&
+                interaction.customId ===
+                    'welcome_dm_style'
+            ) {
+
+                const config =
+                    chargerConfigServeur(
+                        interaction.guild.id
+                    );
+
+                const modal =
+                    new ModalBuilder()
+                        .setCustomId('modal_welcome_dm_style')
+                        .setTitle('Message privé de bienvenue');
+
+                const titre =
+                    new TextInputBuilder()
+                        .setCustomId('welcome_dm_title')
+                        .setLabel('Titre')
+                        .setStyle(TextInputStyle.Short)
+                        .setRequired(true)
+                        .setMaxLength(256)
+                        .setValue(config.welcome.welcomeDmTitle || '👋 Bienvenue sur {server}');
+
+                const message =
+                    new TextInputBuilder()
+                        .setCustomId('welcome_dm_message')
+                        .setLabel('Message')
+                        .setStyle(TextInputStyle.Paragraph)
+                        .setRequired(true)
+                        .setMaxLength(4000)
+                        .setValue(config.welcome.welcomeDmMessage || 'Ravi de t’avoir parmi nous !');
+
+                const couleur =
+                    new TextInputBuilder()
+                        .setCustomId('welcome_dm_color')
+                        .setLabel('Couleur HEX')
+                        .setStyle(TextInputStyle.Short)
+                        .setRequired(true)
+                        .setMaxLength(7)
+                        .setPlaceholder('#F47B20')
+                        .setValue(config.welcome.welcomeDmColor || '#F47B20');
+
+                modal.addComponents(
+                    new ActionRowBuilder().addComponents(titre),
+                    new ActionRowBuilder().addComponents(message),
+                    new ActionRowBuilder().addComponents(couleur)
+                );
+
+                await interaction.showModal(modal);
+
+                return;
+
+            }
+
+
+            if (
+                interaction.isModalSubmit() &&
+                interaction.customId ===
+                    'modal_welcome_dm_style'
+            ) {
+
+                const config =
+                    chargerConfigServeur(
+                        interaction.guild.id
+                    );
+
+                config.welcome.welcomeDmTitle =
+                    interaction.fields.getTextInputValue('welcome_dm_title').trim();
+
+                config.welcome.welcomeDmMessage =
+                    interaction.fields.getTextInputValue('welcome_dm_message').trim();
+
+                config.welcome.welcomeDmColor =
+                    couleurValide(
+                        interaction.fields.getTextInputValue('welcome_dm_color').trim(),
+                        '#F47B20'
+                    );
+
+                sauvegarderConfigServeur(
+                    interaction.guild.id,
+                    config
+                );
+
+                await interaction.reply({
+                    content: '✅ Message privé de bienvenue enregistré.',
+                    flags: MessageFlags.Ephemeral
+                });
+                programmerSuppressionEphemere(interaction, 15000);
+
+                return;
+
+            }
+
+
+// ==================================================
+// AVATAR BIENVENUE EN DM
+// ==================================================
+
+            if (
+                interaction.isButton() &&
+                interaction.customId ===
+                    'welcome_dm_avatar_toggle'
+            ) {
+
+                const config =
+                    chargerConfigServeur(
+                        interaction.guild.id
+                    );
+
+                config.welcome.welcomeDmShowAvatar =
+                    !config.welcome.welcomeDmShowAvatar;
+
+                sauvegarderConfigServeur(
+                    interaction.guild.id,
+                    config
+                );
+
+                await interaction.reply({
+                    content:
+                        config.welcome.welcomeDmShowAvatar
+                            ? '✅ Avatar activé dans le DM de bienvenue.'
+                            : '❌ Avatar désactivé dans le DM de bienvenue.',
+                    flags: MessageFlags.Ephemeral
+                });
+                programmerSuppressionEphemere(interaction, 15000);
+
+                return;
+
+            }
+
+
+// ==================================================
+// IMAGE BIENVENUE EN DM
+// ==================================================
+
+            if (
+                interaction.isButton() &&
+                interaction.customId ===
+                    'welcome_dm_image'
+            ) {
+
+                const cle =
+                    `${interaction.guild.id}:${interaction.user.id}`;
+
+                attenteImageBienvenue.set(
+                    cle,
+                    {
+                        type: 'welcome_dm',
+                        channelId: interaction.channel.id,
+                        expiresAt: Date.now() + 120000
+                    }
+                );
+
+                await interaction.reply({
+                    content: '🖼️ Envoie maintenant **l’image du DM de bienvenue** dans ce salon.\nTu as **2 minutes**.',
+                    flags: MessageFlags.Ephemeral
+                });
+                programmerSuppressionEphemere(interaction, 30000);
+
+                return;
+
+            }
+
+
+            if (
+                interaction.isButton() &&
+                interaction.customId ===
+                    'welcome_dm_image_delete'
+            ) {
+
+                const config =
+                    chargerConfigServeur(
+                        interaction.guild.id
+                    );
+
+                config.welcome.welcomeDmImageUrl =
+                    '';
+
+                sauvegarderConfigServeur(
+                    interaction.guild.id,
+                    config
+                );
+
+                await interaction.reply({
+                    content: '✅ Image du DM de bienvenue supprimée.',
+                    flags: MessageFlags.Ephemeral
+                });
+                programmerSuppressionEphemere(interaction, 15000);
+
+                return;
+
+            }
+
 
 // ======================================================
 // PANEL ANNONCES
