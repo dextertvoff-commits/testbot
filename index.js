@@ -357,7 +357,16 @@ function configBaseServeur() {
                 'ORYUM SYSTEMS • Vérification',
 
             buttonLabel:
-                'Valider le règlement'
+                'Valider le règlement',
+
+            nicknameEnabled:
+                true,
+
+            nicknameFormat:
+                '{NOM} | {Prenom}',
+
+            keepDiscordUsername:
+                false
 
         },
 
@@ -3798,6 +3807,36 @@ function programmerSuppressionEphemere(
 
 
 // ======================================================
+// FORMAT DU PSEUDO APRÈS VÉRIFICATION
+// ======================================================
+
+function formaterPseudoVerification(
+    format,
+    nom,
+    prenom,
+    pseudoDiscord = ''
+) {
+    const modele = String(
+        format || '{NOM} | {Prenom}'
+    );
+
+    return modele
+        .replaceAll('{NOM}', nom)
+        .replaceAll('{Nom}', nom)
+        .replaceAll('{nom}', nom)
+        .replaceAll('{PRENOM}', prenom.toLocaleUpperCase('fr-FR'))
+        .replaceAll('{Prenom}', prenom)
+        .replaceAll('{prenom}', prenom.toLocaleLowerCase('fr-FR'))
+        .replaceAll('{PSEUDO}', pseudoDiscord)
+        .replaceAll('{Pseudo}', pseudoDiscord)
+        .replaceAll('{pseudo}', pseudoDiscord)
+        .replace(/\s+/g, ' ')
+        .trim()
+        .slice(0, 32);
+}
+
+
+// ======================================================
 // DÉBUT DES INTERACTIONS
 // ======================================================
 
@@ -4515,9 +4554,23 @@ client.on(
                             inline: false
                         },
                         {
-                            name: '🏷️ Pseudo RP',
-                            value: '`NOM | Prénom`',
+                            name: '🏷️ Modification du pseudo',
+                            value: v.nicknameEnabled === false
+                                ? '❌ Désactivée'
+                                : '✅ Activée',
                             inline: true
+                        },
+                        {
+                            name: '👤 Conserver le pseudo Discord',
+                            value: v.keepDiscordUsername === true
+                                ? '✅ Oui'
+                                : '❌ Non',
+                            inline: true
+                        },
+                        {
+                            name: '🧩 Format du pseudo',
+                            value: `\`${v.nicknameFormat || '{NOM} | {Prenom}'}\``,
+                            inline: false
                         }
                     );
 
@@ -4556,10 +4609,28 @@ client.on(
                         .setEmoji('📤')
                         .setStyle(ButtonStyle.Success),
                     new ButtonBuilder()
+                        .setCustomId('verification_nickname_toggle')
+                        .setLabel(v.nicknameEnabled === false ? 'Activer pseudo' : 'Désactiver pseudo')
+                        .setEmoji('🏷️')
+                        .setStyle(v.nicknameEnabled === false ? ButtonStyle.Success : ButtonStyle.Danger),
+                    new ButtonBuilder()
+                        .setCustomId('verification_nickname_format')
+                        .setLabel('Format pseudo')
+                        .setEmoji('🧩')
+                        .setStyle(ButtonStyle.Secondary),
+                    new ButtonBuilder()
                         .setCustomId('verification_clear_pending')
                         .setLabel('Retirer rôle attente')
                         .setEmoji('🗑️')
                         .setStyle(ButtonStyle.Danger)
+                );
+
+                const ligne3 = new ActionRowBuilder().addComponents(
+                    new ButtonBuilder()
+                        .setCustomId('verification_keep_username_toggle')
+                        .setLabel(v.keepDiscordUsername === true ? 'Ne pas garder pseudo' : 'Garder pseudo Discord')
+                        .setEmoji('👤')
+                        .setStyle(v.keepDiscordUsername === true ? ButtonStyle.Danger : ButtonStyle.Success)
                 );
 
                 await interaction.update({
@@ -4567,9 +4638,128 @@ client.on(
                     components: [
                         ligne1,
                         ligne2,
+                        ligne3,
                         creerLigneRetourAdmin()
                     ]
                 });
+                return;
+            }
+
+
+            if (
+                interaction.isButton() &&
+                interaction.customId === 'verification_nickname_toggle'
+            ) {
+                const config = chargerConfigServeur(interaction.guild.id);
+                config.verification.nicknameEnabled =
+                    config.verification.nicknameEnabled === false;
+
+                sauvegarderConfigServeur(interaction.guild.id, config);
+
+                await interaction.reply({
+                    content: config.verification.nicknameEnabled
+                        ? '✅ Modification automatique du pseudo activée.'
+                        : '❌ Modification automatique du pseudo désactivée.',
+                    flags: MessageFlags.Ephemeral
+                });
+                programmerSuppressionEphemere(interaction, 15000);
+                return;
+            }
+
+
+            if (
+                interaction.isButton() &&
+                interaction.customId === 'verification_keep_username_toggle'
+            ) {
+                const config = chargerConfigServeur(interaction.guild.id);
+                config.verification.keepDiscordUsername =
+                    config.verification.keepDiscordUsername !== true;
+
+                // Quand on active la conservation du pseudo, on ajoute automatiquement
+                // {PSEUDO} au format s'il n'est pas déjà présent.
+                if (
+                    config.verification.keepDiscordUsername === true &&
+                    !/\{(?:PSEUDO|Pseudo|pseudo)\}/.test(config.verification.nicknameFormat || '')
+                ) {
+                    config.verification.nicknameFormat =
+                        `${config.verification.nicknameFormat || '{NOM} | {Prenom}'} | {PSEUDO}`;
+                }
+
+                sauvegarderConfigServeur(interaction.guild.id, config);
+
+                await interaction.reply({
+                    content: config.verification.keepDiscordUsername
+                        ? `✅ Le pseudo Discord sera conservé.\nFormat actuel : \`${config.verification.nicknameFormat}\``
+                        : '❌ Le pseudo Discord ne sera plus conservé.',
+                    flags: MessageFlags.Ephemeral
+                });
+                programmerSuppressionEphemere(interaction, 15000);
+                return;
+            }
+
+
+            if (
+                interaction.isButton() &&
+                interaction.customId === 'verification_nickname_format'
+            ) {
+                const config = chargerConfigServeur(interaction.guild.id);
+                const v = config.verification || {};
+
+                const modal = new ModalBuilder()
+                    .setCustomId('modal_verification_nickname_format')
+                    .setTitle('Format du pseudo RP');
+
+                const formatInput = new TextInputBuilder()
+                    .setCustomId('verification_nickname_format_value')
+                    .setLabel('Format du pseudo')
+                    .setStyle(TextInputStyle.Short)
+                    .setRequired(true)
+                    .setMaxLength(80)
+                    .setValue(v.nicknameFormat || '{NOM} | {Prenom}')
+                    .setPlaceholder('{NOM} | {Prenom}');
+
+                modal.addComponents(
+                    new ActionRowBuilder().addComponents(formatInput)
+                );
+
+                await interaction.showModal(modal);
+                return;
+            }
+
+
+            if (
+                interaction.isModalSubmit() &&
+                interaction.customId === 'modal_verification_nickname_format'
+            ) {
+                const config = chargerConfigServeur(interaction.guild.id);
+                const format = interaction.fields
+                    .getTextInputValue('verification_nickname_format_value')
+                    .trim();
+
+                if (
+                    !format.includes('{NOM}') &&
+                    !format.includes('{Nom}') &&
+                    !format.includes('{nom}') &&
+                    !format.includes('{PRENOM}') &&
+                    !format.includes('{Prenom}') &&
+                    !format.includes('{prenom}')
+                ) {
+                    await interaction.reply({
+                        content: '❌ Le format doit contenir au moins une variable : `{NOM}` ou `{Prenom}`.',
+                        flags: MessageFlags.Ephemeral
+                    });
+                    programmerSuppressionEphemere(interaction, 15000);
+                    return;
+                }
+
+                config.verification.nicknameFormat = format;
+                sauvegarderConfigServeur(interaction.guild.id, config);
+
+                await interaction.reply({
+                    content: `✅ Format du pseudo enregistré : \`${format}\`\nVariables : \`{NOM}\`, \`{Prenom}\`, \`{prenom}\`, \`{PRENOM}\`.`,
+                    flags: MessageFlags.Ephemeral
+                });
+                programmerSuppressionEphemere(interaction, 15000);
                 return;
             }
 
@@ -4993,7 +5183,26 @@ client.on(
                     .toLocaleLowerCase('fr-FR')
                     .replace(/(^|[ '\-])\p{L}/gu, lettre => lettre.toLocaleUpperCase('fr-FR'));
 
-                const pseudo = `${nomRp} | ${prenomRp}`.slice(0, 32);
+                const pseudoDiscord =
+                    interaction.user.username;
+
+                let formatPseudo =
+                    v.nicknameFormat || '{NOM} | {Prenom}';
+
+                // Si la conservation du pseudo est désactivée, {PSEUDO}
+                // est retiré proprement même s'il était présent dans un ancien format.
+                if (v.keepDiscordUsername !== true) {
+                    formatPseudo = formatPseudo
+                        .replace(/\s*[|•-]?\s*\{(?:PSEUDO|Pseudo|pseudo)\}/g, '')
+                        .replace(/\{(?:PSEUDO|Pseudo|pseudo)\}\s*[|•-]?\s*/g, '');
+                }
+
+                const pseudo = formaterPseudoVerification(
+                    formatPseudo,
+                    nomRp,
+                    prenomRp,
+                    pseudoDiscord
+                );
                 const rolesValides = Array.isArray(v.verifiedRoleIds)
                     ? v.verifiedRoleIds
                     : [];
@@ -5042,8 +5251,14 @@ client.on(
                     }
                 }
 
+                const modificationPseudoActivee =
+                    v.nicknameEnabled !== false;
+
                 let pseudoModifie = false;
-                if (interaction.member.manageable) {
+                if (
+                    modificationPseudoActivee &&
+                    interaction.member.manageable
+                ) {
                     try {
                         await interaction.member.setNickname(
                             pseudo,
@@ -5056,11 +5271,18 @@ client.on(
 
                 let message =
                     `✅ **Validation terminée !**\n` +
-                    `🏷️ Identité RP : **${pseudo}**\n` +
+                    `🪪 Identité RP : **${nomRp} ${prenomRp}**\n` +
                     `🎭 Rôles attribués : **${rolesAjoutes.length}**`;
 
-                if (!pseudoModifie) {
-                    message += '\n⚠️ ORYUM n’a pas pu modifier ton pseudo. Vérifie la hiérarchie des rôles du bot.';
+                if (modificationPseudoActivee) {
+                    message += `\n🏷️ Pseudo demandé : **${pseudo}**`;
+
+                    if (!pseudoModifie) {
+                        message += '\n⚠️ ORYUM n’a pas pu modifier ton pseudo. Vérifie la hiérarchie des rôles du bot.';
+                    }
+                }
+                else {
+                    message += '\n🏷️ Modification automatique du pseudo : **désactivée**';
                 }
 
                 if (rolesEchoues.length) {
