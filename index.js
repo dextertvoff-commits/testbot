@@ -3970,6 +3970,7 @@ function obtenirConfigVocauxTemporaires(config) {
     if (!config.temporaryVoices.activeChannels || typeof config.temporaryVoices.activeChannels !== 'object') config.temporaryVoices.activeChannels = {};
     for (const profil of Object.values(config.temporaryVoices.creators)) {
         if (profil && !Array.isArray(profil.allowedRoleIds)) profil.allowedRoleIds = [];
+        if (profil && !Array.isArray(profil.visibleRoleIds)) profil.visibleRoleIds = [];
     }
     return config.temporaryVoices;
 }
@@ -3980,6 +3981,12 @@ function rolesAutorisesProfilVocal(profil) {
         : [];
 }
 
+function rolesVisiblesProfilVocal(profil) {
+    return Array.isArray(profil?.visibleRoleIds)
+        ? [...new Set(profil.visibleRoleIds.filter(Boolean))].slice(0, 10)
+        : [];
+}
+
 function membreAutoriseProfilVocal(member, profil) {
     const roles = rolesAutorisesProfilVocal(profil);
     if (!roles.length) return true;
@@ -3987,18 +3994,49 @@ function membreAutoriseProfilVocal(member, profil) {
     return roles.some(roleId => member.roles.cache.has(roleId));
 }
 
-async function appliquerPermissionsSalonCreateur(guild, profil) {
+async function appliquerPermissionsSalonCreateur(guild, profil, anciensRoleIds = []) {
     const channel = guild.channels.cache.get(profil?.triggerChannelId);
     if (!channel || channel.type !== ChannelType.GuildVoice) return;
-    const roles = rolesAutorisesProfilVocal(profil);
-    if (!roles.length) {
+
+    const rolesConnexion = rolesAutorisesProfilVocal(profil);
+    const rolesVisibilite = rolesVisiblesProfilVocal(profil);
+    const rolesActuels = new Set([...rolesConnexion, ...rolesVisibilite]);
+
+    for (const roleId of anciensRoleIds) {
+        if (!rolesActuels.has(roleId)) {
+            await channel.permissionOverwrites.delete(roleId, 'ORYUM SYSTEMS - nettoyage ancienne permission vocal').catch(() => {});
+        }
+    }
+
+    if (!rolesConnexion.length && !rolesVisibilite.length) {
         await channel.permissionOverwrites.delete(guild.roles.everyone.id, 'ORYUM SYSTEMS - accès public vocal créateur').catch(() => {});
         return;
     }
-    await channel.permissionOverwrites.edit(guild.roles.everyone.id, { Connect: false }, { reason: 'ORYUM SYSTEMS - restriction vocal créateur' }).catch(() => {});
-    for (const roleId of roles) {
-        const role = guild.roles.cache.get(roleId);
-        if (role) await channel.permissionOverwrites.edit(roleId, { ViewChannel: true, Connect: true, Speak: true }, { reason: 'ORYUM SYSTEMS - rôle autorisé vocal créateur' }).catch(() => {});
+
+    if (rolesVisibilite.length) {
+        await channel.permissionOverwrites.edit(
+            guild.roles.everyone.id,
+            { ViewChannel: false, Connect: false },
+            { reason: 'ORYUM SYSTEMS - restriction visibilité vocal créateur' }
+        ).catch(() => {});
+    } else {
+        await channel.permissionOverwrites.edit(
+            guild.roles.everyone.id,
+            { ViewChannel: null, Connect: rolesConnexion.length ? false : null },
+            { reason: 'ORYUM SYSTEMS - restriction connexion vocal créateur' }
+        ).catch(() => {});
+    }
+
+    for (const roleId of rolesVisibilite) {
+        if (guild.roles.cache.has(roleId)) {
+            await channel.permissionOverwrites.edit(roleId, { ViewChannel: true }, { reason: 'ORYUM SYSTEMS - rôle autorisé à voir le vocal créateur' }).catch(() => {});
+        }
+    }
+
+    for (const roleId of rolesConnexion) {
+        if (guild.roles.cache.has(roleId)) {
+            await channel.permissionOverwrites.edit(roleId, { ViewChannel: true, Connect: true, Speak: true }, { reason: 'ORYUM SYSTEMS - rôle autorisé vocal créateur' }).catch(() => {});
+        }
     }
 }
 
@@ -4031,8 +4069,10 @@ function creerEmbedConfigVocauxTemporaires(guild, config) {
             const cat = p.categoryId ? `<#${p.categoryId}>` : 'Sans catégorie';
             const limite = Number(p.userLimit) || 0;
             const roles = rolesAutorisesProfilVocal(p);
+            const visibles = rolesVisiblesProfilVocal(p);
             const acces = roles.length ? roles.map(id => `<@&${id}>`).join(', ') : '🌐 Public';
-            return `**${i + 1}.** ${salon} → \`${p.voiceNameFormat || '🎙️ Vocal de {DISPLAYNAME}'}\` • ${limite || '∞'} places • ${cat}\n└ 👥 ${acces}`;
+            const visibilite = visibles.length ? visibles.map(id => `<@&${id}>`).join(', ') : '🌐 Visible par tous';
+            return `**${i + 1}.** ${salon} → \`${p.voiceNameFormat || '🎙️ Vocal de {DISPLAYNAME}'}\` • ${limite || '∞'} places • ${cat}\n└ 🔗 Rejoindre : ${acces}\n└ 👁️ Voir : ${visibilite}`;
         }).join('\n')
         : 'Aucun salon créateur configuré.';
 
@@ -4054,10 +4094,13 @@ function creerComposantsVocauxTemporaires(config) {
         new ButtonBuilder().setCustomId('tempvoice_toggle').setLabel(tv.enabled ? 'Désactiver' : 'Activer').setEmoji(tv.enabled ? '⛔' : '✅').setStyle(tv.enabled ? ButtonStyle.Danger : ButtonStyle.Success),
         new ButtonBuilder().setCustomId('tempvoice_add').setLabel('Ajouter un créateur').setEmoji('➕').setStyle(ButtonStyle.Primary),
         new ButtonBuilder().setCustomId('tempvoice_edit').setLabel('Modifier').setEmoji('✏️').setStyle(ButtonStyle.Secondary),
-        new ButtonBuilder().setCustomId('tempvoice_roles').setLabel('Rôles autorisés').setEmoji('👥').setStyle(ButtonStyle.Secondary),
+        new ButtonBuilder().setCustomId('tempvoice_roles').setLabel('Rôles pour rejoindre').setEmoji('🔗').setStyle(ButtonStyle.Secondary),
         new ButtonBuilder().setCustomId('tempvoice_delete').setLabel('Supprimer').setEmoji('🗑️').setStyle(ButtonStyle.Danger)
     );
-    return [ligne1, creerLigneRetourAdmin()];
+    const ligne2 = new ActionRowBuilder().addComponents(
+        new ButtonBuilder().setCustomId('tempvoice_view_roles').setLabel('Rôles pouvant voir').setEmoji('👁️').setStyle(ButtonStyle.Secondary)
+    );
+    return [ligne1, ligne2, creerLigneRetourAdmin()];
 }
 
 function creerMenuProfilsVocaux(config, customId, placeholder) {
@@ -4194,191 +4237,11 @@ client.on(
                 }
 
 
-                const embed =
-                    new EmbedBuilder()
-
-                        .setColor(
-                            '#F47B20'
-                        )
-
-                        .setTitle(
-                            '⚙️ ORYUM SYSTEMS // PANNEAU ADMIN'
-                        )
-
-                        .setDescription(
-                            `Configuration de **${interaction.guild.name}**.\n\n` +
-                            'Gérez les modules et paramètres disponibles depuis ce panneau.'
-                        )
-
-                        .setFooter({
-
-                            text:
-                                `Serveur ID : ${interaction.guild.id}`
-
-                        });
-
-
-                const ligne =
-                    new ActionRowBuilder()
-
-                        .addComponents(
-
-                            new ButtonBuilder()
-
-                                .setCustomId(
-                                    'admin_tickets'
-                                )
-
-                                .setLabel(
-                                    'Tickets'
-                                )
-
-                                .setEmoji(
-                                    '🎫'
-                                )
-
-                                .setStyle(
-                                    ButtonStyle.Primary
-                                ),
-
-
-                            new ButtonBuilder()
-
-                                .setCustomId(
-                                    'admin_bienvenue'
-                                )
-
-                                .setLabel(
-                                    'Bienvenue'
-                                )
-
-                                .setEmoji(
-                                    '👋'
-                                )
-
-                                .setStyle(
-                                    ButtonStyle.Secondary
-                                ),
-
-
-                            new ButtonBuilder()
-
-                                .setCustomId(
-                                    'admin_annonces'
-                                )
-
-                                .setLabel(
-                                    'Annonces'
-                                )
-
-                                .setEmoji(
-                                    '📢'
-                                )
-
-                                .setStyle(
-                                    ButtonStyle.Secondary
-                                ),
-
-
-                            new ButtonBuilder()
-
-                                .setCustomId(
-                                    'admin_streams'
-                                )
-
-                                .setLabel(
-                                    'Streams'
-                                )
-
-                                .setEmoji(
-                                    '🔴'
-                                )
-
-                                .setStyle(
-                                    ButtonStyle.Secondary
-                                ),
-
-
-                            new ButtonBuilder()
-
-                                .setCustomId(
-                                    'admin_appearance'
-                                )
-
-                                .setLabel(
-                                    'Apparence'
-                                )
-
-                                .setEmoji(
-                                    '🤖'
-                                )
-
-                                .setStyle(
-                                    ButtonStyle.Secondary
-                                )
-
-                        );
-
-
-                const ligneAcces =
-                    new ActionRowBuilder()
-
-                        .addComponents(
-
-                            new ButtonBuilder()
-
-                                .setCustomId(
-                                    'admin_verification'
-                                )
-
-                                .setLabel(
-                                    'Vérification'
-                                )
-
-                                .setEmoji(
-                                    '✅'
-                                )
-
-                                .setStyle(
-                                    ButtonStyle.Success
-                                ),
-
-
-                            new ButtonBuilder()
-
-                                .setCustomId(
-                                    'admin_access'
-                                )
-
-                                .setLabel(
-                                    'Accès Bot'
-                                )
-
-                                .setEmoji(
-                                    '🔐'
-                                )
-
-                                .setStyle(
-                                    ButtonStyle.Secondary
-                                )
-
-                        );
-
+                const panel = creerPanelPrincipalAdmin(interaction.guild);
 
                 await interaction.reply({
-
-                    embeds: [
-                        embed
-                    ],
-
-                    components: [
-                        ligne,
-                        ligneAcces
-                    ],
-
-                    flags:
-                        MessageFlags.Ephemeral
-
+                    ...panel,
+                    flags: MessageFlags.Ephemeral
                 });
 
 
@@ -4808,7 +4671,7 @@ client.on(
                 }
                 const triggerChannel = await interaction.guild.channels.create({ name: pending.triggerName, type: ChannelType.GuildVoice, parent: categoryId, reason: `ORYUM SYSTEMS - salon créateur configuré par ${interaction.user.tag}` });
                 const tv = obtenirConfigVocauxTemporaires(config);
-                tv.creators[triggerChannel.id] = { triggerChannelId: triggerChannel.id, triggerName: pending.triggerName, categoryId, voiceNameFormat: pending.voiceNameFormat, userLimit: pending.userLimit, allowedRoleIds: [] };
+                tv.creators[triggerChannel.id] = { triggerChannelId: triggerChannel.id, triggerName: pending.triggerName, categoryId, voiceNameFormat: pending.voiceNameFormat, userLimit: pending.userLimit, allowedRoleIds: [], visibleRoleIds: [] };
                 temporaryVoiceSetupPending.delete(key);
                 sauvegarderConfigServeur(interaction.guild.id, config);
                 await interaction.update({ content: `✅ Salon créateur créé : ${triggerChannel}\nFormat des vocaux : \`${pending.voiceNameFormat}\``, components: [] });
@@ -4931,8 +4794,9 @@ client.on(
                 const tv = obtenirConfigVocauxTemporaires(config);
                 const profil = tv.creators[pending.profileId];
                 if (!profil) return;
+                const anciensRoles = [...rolesAutorisesProfilVocal(profil), ...rolesVisiblesProfilVocal(profil)];
                 profil.allowedRoleIds = [...new Set(interaction.values)].slice(0, 10);
-                await appliquerPermissionsSalonCreateur(interaction.guild, profil);
+                await appliquerPermissionsSalonCreateur(interaction.guild, profil, anciensRoles);
                 temporaryVoiceEditPending.delete(key);
                 sauvegarderConfigServeur(interaction.guild.id, config);
                 await interaction.update({ content: profil.allowedRoleIds.length ? `✅ Accès configuré : ${profil.allowedRoleIds.map(id => `<@&${id}>`).join(', ')}` : '✅ Ce salon créateur est maintenant public.', components: [] });
@@ -4952,11 +4816,92 @@ client.on(
                 const tv = obtenirConfigVocauxTemporaires(config);
                 const profil = tv.creators[pending.profileId];
                 if (!profil) return;
+                const anciensRoles = [...rolesAutorisesProfilVocal(profil), ...rolesVisiblesProfilVocal(profil)];
                 profil.allowedRoleIds = [];
-                await appliquerPermissionsSalonCreateur(interaction.guild, profil);
+                await appliquerPermissionsSalonCreateur(interaction.guild, profil, anciensRoles);
                 temporaryVoiceEditPending.delete(key);
                 sauvegarderConfigServeur(interaction.guild.id, config);
                 await interaction.update({ content: '🌐 Salon créateur rendu public. Tout le monde peut créer et rejoindre ses vocaux éphémères.', components: [] });
+                return;
+            }
+
+            if (interaction.isButton() && interaction.customId === 'tempvoice_view_roles') {
+                const config = chargerConfigServeur(interaction.guild.id);
+                if (!utilisateurPeutAdministrerBot(interaction, config)) return;
+                const row = creerMenuProfilsVocaux(config, 'select_tempvoice_view_roles_profile', 'Choisir le salon créateur');
+                if (!row) {
+                    await interaction.reply({ content: '❌ Aucun salon créateur configuré.', flags: MessageFlags.Ephemeral });
+                    programmerSuppressionEphemere(interaction, 15000);
+                    return;
+                }
+                await interaction.reply({ content: '👁️ Choisis le salon créateur dont tu veux gérer la visibilité.', components: [row], flags: MessageFlags.Ephemeral });
+                programmerSuppressionEphemere(interaction, 30000);
+                return;
+            }
+
+            if (interaction.isStringSelectMenu() && interaction.customId === 'select_tempvoice_view_roles_profile') {
+                const config = chargerConfigServeur(interaction.guild.id);
+                if (!utilisateurPeutAdministrerBot(interaction, config)) return;
+                const tv = obtenirConfigVocauxTemporaires(config);
+                const profileId = interaction.values[0];
+                const profil = tv.creators[profileId];
+                if (!profil) return;
+                temporaryVoiceEditPending.set(cleUtilisateurServeur(interaction.guild.id, interaction.user.id), { profileId, mode: 'view_roles', expiresAt: Date.now() + 120000 });
+                const roles = rolesVisiblesProfilVocal(profil);
+                const menu = new RoleSelectMenuBuilder().setCustomId('select_tempvoice_visible_roles').setPlaceholder('Choisir jusqu’à 10 rôles pouvant voir').setMinValues(0).setMaxValues(10);
+                if (roles.length) menu.setDefaultRoles(roles);
+                const clear = new ButtonBuilder().setCustomId('tempvoice_view_roles_clear').setLabel('Visible par tous').setEmoji('🌐').setStyle(ButtonStyle.Secondary);
+                await interaction.update({
+                    content: `👁️ Rôles pouvant voir <#${profil.triggerChannelId}> et ses vocaux éphémères.
+${roles.length ? roles.map(id => `<@&${id}>`).join(', ') : '**Actuellement : visible par tous**'}
+
+La visibilité et le droit de rejoindre sont deux réglages séparés.`,
+                    components: [new ActionRowBuilder().addComponents(menu), new ActionRowBuilder().addComponents(clear)]
+                });
+                return;
+            }
+
+            if (interaction.isRoleSelectMenu() && interaction.customId === 'select_tempvoice_visible_roles') {
+                const config = chargerConfigServeur(interaction.guild.id);
+                if (!utilisateurPeutAdministrerBot(interaction, config)) return;
+                const key = cleUtilisateurServeur(interaction.guild.id, interaction.user.id);
+                const pending = temporaryVoiceEditPending.get(key);
+                if (!pending || pending.mode !== 'view_roles' || Date.now() > pending.expiresAt) {
+                    temporaryVoiceEditPending.delete(key);
+                    await interaction.update({ content: '❌ Configuration expirée. Recommence depuis le panneau.', components: [] });
+                    return;
+                }
+                const tv = obtenirConfigVocauxTemporaires(config);
+                const profil = tv.creators[pending.profileId];
+                if (!profil) return;
+                const anciensRoles = [...rolesAutorisesProfilVocal(profil), ...rolesVisiblesProfilVocal(profil)];
+                profil.visibleRoleIds = [...new Set(interaction.values)].slice(0, 10);
+                await appliquerPermissionsSalonCreateur(interaction.guild, profil, anciensRoles);
+                temporaryVoiceEditPending.delete(key);
+                sauvegarderConfigServeur(interaction.guild.id, config);
+                await interaction.update({ content: profil.visibleRoleIds.length ? `✅ Visibilité configurée : ${profil.visibleRoleIds.map(id => `<@&${id}>`).join(', ')}` : '✅ Ces salons sont maintenant visibles par tout le monde.', components: [] });
+                return;
+            }
+
+            if (interaction.isButton() && interaction.customId === 'tempvoice_view_roles_clear') {
+                const config = chargerConfigServeur(interaction.guild.id);
+                if (!utilisateurPeutAdministrerBot(interaction, config)) return;
+                const key = cleUtilisateurServeur(interaction.guild.id, interaction.user.id);
+                const pending = temporaryVoiceEditPending.get(key);
+                if (!pending || pending.mode !== 'view_roles' || Date.now() > pending.expiresAt) {
+                    temporaryVoiceEditPending.delete(key);
+                    await interaction.update({ content: '❌ Configuration expirée. Recommence depuis le panneau.', components: [] });
+                    return;
+                }
+                const tv = obtenirConfigVocauxTemporaires(config);
+                const profil = tv.creators[pending.profileId];
+                if (!profil) return;
+                const anciensRoles = [...rolesAutorisesProfilVocal(profil), ...rolesVisiblesProfilVocal(profil)];
+                profil.visibleRoleIds = [];
+                await appliquerPermissionsSalonCreateur(interaction.guild, profil, anciensRoles);
+                temporaryVoiceEditPending.delete(key);
+                sauvegarderConfigServeur(interaction.guild.id, config);
+                await interaction.update({ content: '🌐 Les salons de ce créateur sont maintenant visibles par tout le monde.', components: [] });
                 return;
             }
 
@@ -14952,19 +14897,29 @@ client.on(Events.VoiceStateUpdate, async (oldState, newState) => {
         const nom = formatNomVocalTemporaire(profil.voiceNameFormat, member, numero);
 
         const rolesAutorises = rolesAutorisesProfilVocal(profil);
+        const rolesVisibles = rolesVisiblesProfilVocal(profil);
         const permissionOverwrites = [];
-        if (rolesAutorises.length) {
+
+        if (rolesVisibles.length) {
             permissionOverwrites.push({
                 id: guild.roles.everyone.id,
-                deny: [PermissionFlagsBits.Connect]
+                deny: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.Connect]
             });
-            for (const roleId of rolesAutorises) {
+            for (const roleId of rolesVisibles) {
                 if (guild.roles.cache.has(roleId)) {
-                    permissionOverwrites.push({
-                        id: roleId,
-                        allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.Connect, PermissionFlagsBits.Speak]
-                    });
+                    permissionOverwrites.push({ id: roleId, allow: [PermissionFlagsBits.ViewChannel] });
                 }
+            }
+        } else if (rolesAutorises.length) {
+            permissionOverwrites.push({ id: guild.roles.everyone.id, deny: [PermissionFlagsBits.Connect] });
+        }
+
+        for (const roleId of rolesAutorises) {
+            if (guild.roles.cache.has(roleId)) {
+                permissionOverwrites.push({
+                    id: roleId,
+                    allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.Connect, PermissionFlagsBits.Speak]
+                });
             }
         }
         permissionOverwrites.push({
