@@ -327,6 +327,42 @@ function configBaseServeur() {
 
 
         // ==================================================
+        // VÉRIFICATION / IDENTITÉ RP
+        // ==================================================
+
+        verification: {
+
+            enabled:
+                false,
+
+            channelId:
+                '',
+
+            pendingRoleId:
+                '',
+
+            verifiedRoleIds:
+                [],
+
+            panelTitle:
+                '📜 VALIDATION DU RÈGLEMENT',
+
+            panelDescription:
+                'Avant de commencer, valide le règlement puis renseigne ton identité RP.',
+
+            panelColor:
+                '#F47B20',
+
+            panelFooter:
+                'ORYUM SYSTEMS • Vérification',
+
+            buttonLabel:
+                'Valider le règlement'
+
+        },
+
+
+        // ==================================================
         // APPARENCE DU BOT
         // ==================================================
 
@@ -2911,6 +2947,46 @@ client.on(
 
 
         // --------------------------------------------------
+        // RÔLE TEMPORAIRE DE VÉRIFICATION
+        // --------------------------------------------------
+
+        if (
+            config.verification?.enabled &&
+            config.verification?.pendingRoleId
+        ) {
+
+            try {
+
+                const roleAttente =
+                    member.guild.roles.cache.get(
+                        config.verification.pendingRoleId
+                    )
+                    ||
+                    await member.guild.roles.fetch(
+                        config.verification.pendingRoleId
+                    ).catch(() => null);
+
+                if (
+                    roleAttente &&
+                    roleAttente.editable
+                ) {
+                    await member.roles.add(
+                        roleAttente,
+                        'ORYUM SYSTEMS • En attente de vérification'
+                    );
+                }
+
+            }
+            catch (error) {
+                console.log(
+                    `⚠️ Rôle de vérification impossible pour ${member.user.tag} : ${error.message}`
+                );
+            }
+
+        }
+
+
+        // --------------------------------------------------
         // MESSAGE PUBLIC D'ARRIVÉE
         // --------------------------------------------------
 
@@ -3755,6 +3831,7 @@ function creerPanelPrincipalAdmin(guild) {
     );
 
     const ligneAcces = new ActionRowBuilder().addComponents(
+        new ButtonBuilder().setCustomId('admin_verification').setLabel('Vérification').setEmoji('✅').setStyle(ButtonStyle.Success),
         new ButtonBuilder().setCustomId('admin_access').setLabel('Accès Bot').setEmoji('🔐').setStyle(ButtonStyle.Secondary)
     );
 
@@ -3970,6 +4047,25 @@ client.on(
                     new ActionRowBuilder()
 
                         .addComponents(
+
+                            new ButtonBuilder()
+
+                                .setCustomId(
+                                    'admin_verification'
+                                )
+
+                                .setLabel(
+                                    'Vérification'
+                                )
+
+                                .setEmoji(
+                                    '✅'
+                                )
+
+                                .setStyle(
+                                    ButtonStyle.Success
+                                ),
+
 
                             new ButtonBuilder()
 
@@ -4358,6 +4454,622 @@ client.on(
 
                 return;
 
+            }
+
+
+            // ==================================================
+            // MODULE VÉRIFICATION / IDENTITÉ RP
+            // ==================================================
+
+            if (
+                interaction.isButton() &&
+                interaction.customId === 'admin_verification'
+            ) {
+
+                const config =
+                    chargerConfigServeur(
+                        interaction.guild.id
+                    );
+
+                if (!utilisateurPeutAdministrerBot(interaction, config)) {
+                    await interaction.reply({
+                        content: '❌ Tu n’as pas l’autorisation d’utiliser ce module.',
+                        flags: MessageFlags.Ephemeral
+                    });
+                    programmerSuppressionEphemere(interaction, 15000);
+                    return;
+                }
+
+                const v = config.verification || {};
+                const rolesValides = Array.isArray(v.verifiedRoleIds)
+                    ? v.verifiedRoleIds
+                    : [];
+
+                const embed = new EmbedBuilder()
+                    .setColor(v.enabled ? '#57F287' : '#ED4245')
+                    .setTitle('✅ ORYUM SYSTEMS // VÉRIFICATION')
+                    .setDescription(
+                        'Configure la validation du règlement, les rôles automatiques et le pseudo RP.'
+                    )
+                    .addFields(
+                        {
+                            name: '⚙️ État',
+                            value: v.enabled ? '✅ Activée' : '❌ Désactivée',
+                            inline: true
+                        },
+                        {
+                            name: '📍 Salon du panneau',
+                            value: v.channelId ? `<#${v.channelId}>` : '❌ Non configuré',
+                            inline: true
+                        },
+                        {
+                            name: '⏳ Rôle avant validation',
+                            value: v.pendingRoleId ? `<@&${v.pendingRoleId}>` : 'Aucun',
+                            inline: false
+                        },
+                        {
+                            name: '🎭 Rôles après validation',
+                            value: rolesValides.length
+                                ? rolesValides.map(id => `<@&${id}>`).join(' • ')
+                                : '❌ Aucun rôle configuré',
+                            inline: false
+                        },
+                        {
+                            name: '🏷️ Pseudo RP',
+                            value: '`NOM | Prénom`',
+                            inline: true
+                        }
+                    );
+
+                const ligne1 = new ActionRowBuilder().addComponents(
+                    new ButtonBuilder()
+                        .setCustomId('verification_toggle')
+                        .setLabel(v.enabled ? 'Désactiver' : 'Activer')
+                        .setEmoji(v.enabled ? '🔴' : '🟢')
+                        .setStyle(v.enabled ? ButtonStyle.Danger : ButtonStyle.Success),
+                    new ButtonBuilder()
+                        .setCustomId('verification_channel')
+                        .setLabel('Salon')
+                        .setEmoji('📍')
+                        .setStyle(ButtonStyle.Secondary),
+                    new ButtonBuilder()
+                        .setCustomId('verification_pending_role')
+                        .setLabel('Rôle attente')
+                        .setEmoji('⏳')
+                        .setStyle(ButtonStyle.Secondary),
+                    new ButtonBuilder()
+                        .setCustomId('verification_verified_roles')
+                        .setLabel('Rôles validés')
+                        .setEmoji('🎭')
+                        .setStyle(ButtonStyle.Primary)
+                );
+
+                const ligne2 = new ActionRowBuilder().addComponents(
+                    new ButtonBuilder()
+                        .setCustomId('verification_style')
+                        .setLabel('Message')
+                        .setEmoji('📝')
+                        .setStyle(ButtonStyle.Secondary),
+                    new ButtonBuilder()
+                        .setCustomId('verification_publish')
+                        .setLabel('Publier le panneau')
+                        .setEmoji('📤')
+                        .setStyle(ButtonStyle.Success),
+                    new ButtonBuilder()
+                        .setCustomId('verification_clear_pending')
+                        .setLabel('Retirer rôle attente')
+                        .setEmoji('🗑️')
+                        .setStyle(ButtonStyle.Danger)
+                );
+
+                await interaction.update({
+                    embeds: [embed],
+                    components: [
+                        ligne1,
+                        ligne2,
+                        creerLigneRetourAdmin()
+                    ]
+                });
+                return;
+            }
+
+
+            if (
+                interaction.isButton() &&
+                interaction.customId === 'verification_toggle'
+            ) {
+                const config = chargerConfigServeur(interaction.guild.id);
+                config.verification.enabled = !config.verification.enabled;
+                sauvegarderConfigServeur(interaction.guild.id, config);
+
+                await interaction.reply({
+                    content: config.verification.enabled
+                        ? '✅ Module de vérification activé.'
+                        : '✅ Module de vérification désactivé.',
+                    flags: MessageFlags.Ephemeral
+                });
+                programmerSuppressionEphemere(interaction, 15000);
+                return;
+            }
+
+
+            if (
+                interaction.isButton() &&
+                interaction.customId === 'verification_channel'
+            ) {
+                const menu = new ChannelSelectMenuBuilder()
+                    .setCustomId('select_verification_channel')
+                    .setPlaceholder('Choisis le salon du panneau de validation')
+                    .setChannelTypes(ChannelType.GuildText)
+                    .setMinValues(1)
+                    .setMaxValues(1);
+
+                await interaction.reply({
+                    content: '📍 Choisis le salon dans lequel le panneau de validation sera publié.',
+                    components: [new ActionRowBuilder().addComponents(menu)],
+                    flags: MessageFlags.Ephemeral
+                });
+                programmerSuppressionEphemere(interaction, 30000);
+                return;
+            }
+
+
+            if (
+                interaction.isChannelSelectMenu() &&
+                interaction.customId === 'select_verification_channel'
+            ) {
+                const config = chargerConfigServeur(interaction.guild.id);
+                config.verification.channelId = interaction.values[0];
+                sauvegarderConfigServeur(interaction.guild.id, config);
+
+                await interaction.update({
+                    content: `✅ Salon de validation configuré : <#${interaction.values[0]}>`,
+                    components: []
+                });
+                programmerSuppressionEphemere(interaction, 15000);
+                return;
+            }
+
+
+            if (
+                interaction.isButton() &&
+                interaction.customId === 'verification_pending_role'
+            ) {
+                const menu = new RoleSelectMenuBuilder()
+                    .setCustomId('select_verification_pending_role')
+                    .setPlaceholder('Choisis le rôle donné avant validation')
+                    .setMinValues(1)
+                    .setMaxValues(1);
+
+                await interaction.reply({
+                    content: '⏳ Choisis le rôle temporaire attribué aux nouveaux membres avant validation.',
+                    components: [new ActionRowBuilder().addComponents(menu)],
+                    flags: MessageFlags.Ephemeral
+                });
+                programmerSuppressionEphemere(interaction, 30000);
+                return;
+            }
+
+
+            if (
+                interaction.isRoleSelectMenu() &&
+                interaction.customId === 'select_verification_pending_role'
+            ) {
+                const config = chargerConfigServeur(interaction.guild.id);
+                config.verification.pendingRoleId = interaction.values[0];
+                sauvegarderConfigServeur(interaction.guild.id, config);
+
+                await interaction.update({
+                    content: `✅ Rôle d’attente configuré : <@&${interaction.values[0]}>`,
+                    components: []
+                });
+                programmerSuppressionEphemere(interaction, 15000);
+                return;
+            }
+
+
+            if (
+                interaction.isButton() &&
+                interaction.customId === 'verification_clear_pending'
+            ) {
+                const config = chargerConfigServeur(interaction.guild.id);
+                config.verification.pendingRoleId = '';
+                sauvegarderConfigServeur(interaction.guild.id, config);
+
+                await interaction.reply({
+                    content: '✅ Le rôle d’attente a été retiré de la configuration.',
+                    flags: MessageFlags.Ephemeral
+                });
+                programmerSuppressionEphemere(interaction, 15000);
+                return;
+            }
+
+
+            if (
+                interaction.isButton() &&
+                interaction.customId === 'verification_verified_roles'
+            ) {
+                const menu = new RoleSelectMenuBuilder()
+                    .setCustomId('select_verification_verified_roles')
+                    .setPlaceholder('Choisis les rôles attribués après validation')
+                    .setMinValues(1)
+                    .setMaxValues(10);
+
+                await interaction.reply({
+                    content: '🎭 Sélectionne jusqu’à **10 rôles** à attribuer après validation.',
+                    components: [new ActionRowBuilder().addComponents(menu)],
+                    flags: MessageFlags.Ephemeral
+                });
+                programmerSuppressionEphemere(interaction, 30000);
+                return;
+            }
+
+
+            if (
+                interaction.isRoleSelectMenu() &&
+                interaction.customId === 'select_verification_verified_roles'
+            ) {
+                const config = chargerConfigServeur(interaction.guild.id);
+                config.verification.verifiedRoleIds = [...new Set(interaction.values)];
+                sauvegarderConfigServeur(interaction.guild.id, config);
+
+                await interaction.update({
+                    content:
+                        '✅ Rôles après validation : ' +
+                        config.verification.verifiedRoleIds.map(id => `<@&${id}>`).join(' • '),
+                    components: []
+                });
+                programmerSuppressionEphemere(interaction, 15000);
+                return;
+            }
+
+
+            if (
+                interaction.isButton() &&
+                interaction.customId === 'verification_style'
+            ) {
+                const config = chargerConfigServeur(interaction.guild.id);
+                const v = config.verification;
+
+                const modal = new ModalBuilder()
+                    .setCustomId('modal_verification_style')
+                    .setTitle('Message de vérification');
+
+                const titre = new TextInputBuilder()
+                    .setCustomId('verification_title')
+                    .setLabel('Titre')
+                    .setStyle(TextInputStyle.Short)
+                    .setRequired(true)
+                    .setMaxLength(256)
+                    .setValue(v.panelTitle || '📜 VALIDATION DU RÈGLEMENT');
+
+                const description = new TextInputBuilder()
+                    .setCustomId('verification_description')
+                    .setLabel('Description')
+                    .setStyle(TextInputStyle.Paragraph)
+                    .setRequired(true)
+                    .setMaxLength(2000)
+                    .setValue(v.panelDescription || 'Valide le règlement puis renseigne ton identité RP.');
+
+                const bouton = new TextInputBuilder()
+                    .setCustomId('verification_button_label')
+                    .setLabel('Texte du bouton')
+                    .setStyle(TextInputStyle.Short)
+                    .setRequired(true)
+                    .setMaxLength(80)
+                    .setValue(v.buttonLabel || 'Valider le règlement');
+
+                const couleur = new TextInputBuilder()
+                    .setCustomId('verification_color')
+                    .setLabel('Couleur HEX')
+                    .setStyle(TextInputStyle.Short)
+                    .setRequired(true)
+                    .setMaxLength(7)
+                    .setValue(v.panelColor || '#F47B20');
+
+                const footer = new TextInputBuilder()
+                    .setCustomId('verification_footer')
+                    .setLabel('Footer')
+                    .setStyle(TextInputStyle.Short)
+                    .setRequired(false)
+                    .setMaxLength(200)
+                    .setValue(v.panelFooter || '');
+
+                modal.addComponents(
+                    new ActionRowBuilder().addComponents(titre),
+                    new ActionRowBuilder().addComponents(description),
+                    new ActionRowBuilder().addComponents(bouton),
+                    new ActionRowBuilder().addComponents(couleur),
+                    new ActionRowBuilder().addComponents(footer)
+                );
+
+                await interaction.showModal(modal);
+                return;
+            }
+
+
+            if (
+                interaction.isModalSubmit() &&
+                interaction.customId === 'modal_verification_style'
+            ) {
+                const config = chargerConfigServeur(interaction.guild.id);
+                const couleur = interaction.fields.getTextInputValue('verification_color').trim();
+
+                config.verification.panelTitle =
+                    interaction.fields.getTextInputValue('verification_title').trim();
+                config.verification.panelDescription =
+                    interaction.fields.getTextInputValue('verification_description').trim();
+                config.verification.buttonLabel =
+                    interaction.fields.getTextInputValue('verification_button_label').trim();
+                config.verification.panelColor =
+                    couleurValide(couleur, '#F47B20');
+                config.verification.panelFooter =
+                    interaction.fields.getTextInputValue('verification_footer').trim();
+
+                sauvegarderConfigServeur(interaction.guild.id, config);
+
+                await interaction.reply({
+                    content: '✅ Message de vérification enregistré.',
+                    flags: MessageFlags.Ephemeral
+                });
+                programmerSuppressionEphemere(interaction, 15000);
+                return;
+            }
+
+
+            if (
+                interaction.isButton() &&
+                interaction.customId === 'verification_publish'
+            ) {
+                const config = chargerConfigServeur(interaction.guild.id);
+                const v = config.verification;
+
+                if (!v.channelId) {
+                    await interaction.reply({
+                        content: '❌ Configure d’abord le salon de validation.',
+                        flags: MessageFlags.Ephemeral
+                    });
+                    programmerSuppressionEphemere(interaction, 15000);
+                    return;
+                }
+
+                const salon =
+                    interaction.guild.channels.cache.get(v.channelId)
+                    ||
+                    await interaction.guild.channels.fetch(v.channelId).catch(() => null);
+
+                if (!salon || !salon.isTextBased()) {
+                    await interaction.reply({
+                        content: '❌ Le salon de validation est introuvable.',
+                        flags: MessageFlags.Ephemeral
+                    });
+                    programmerSuppressionEphemere(interaction, 15000);
+                    return;
+                }
+
+                const embed = new EmbedBuilder()
+                    .setColor(couleurValide(v.panelColor, '#F47B20'))
+                    .setTitle(v.panelTitle || '📜 VALIDATION DU RÈGLEMENT')
+                    .setDescription(v.panelDescription || 'Valide le règlement puis renseigne ton identité RP.');
+
+                if (v.panelFooter) {
+                    embed.setFooter({ text: v.panelFooter });
+                }
+
+                const row = new ActionRowBuilder().addComponents(
+                    new ButtonBuilder()
+                        .setCustomId('verification_start')
+                        .setLabel(v.buttonLabel || 'Valider le règlement')
+                        .setEmoji('✅')
+                        .setStyle(ButtonStyle.Success)
+                );
+
+                await salon.send({
+                    embeds: [embed],
+                    components: [row]
+                });
+
+                await interaction.reply({
+                    content: `✅ Panneau de validation publié dans ${salon}.`,
+                    flags: MessageFlags.Ephemeral
+                });
+                programmerSuppressionEphemere(interaction, 15000);
+                return;
+            }
+
+
+            // --------------------------------------------------
+            // BOUTON PUBLIC : COMMENCER LA VÉRIFICATION
+            // --------------------------------------------------
+
+            if (
+                interaction.isButton() &&
+                interaction.customId === 'verification_start'
+            ) {
+                const config = chargerConfigServeur(interaction.guild.id);
+                const v = config.verification;
+
+                if (!v?.enabled) {
+                    await interaction.reply({
+                        content: '❌ La vérification est actuellement désactivée.',
+                        flags: MessageFlags.Ephemeral
+                    });
+                    programmerSuppressionEphemere(interaction, 15000);
+                    return;
+                }
+
+                const rolesValides = Array.isArray(v.verifiedRoleIds)
+                    ? v.verifiedRoleIds
+                    : [];
+
+                const dejaValide =
+                    rolesValides.length > 0 &&
+                    rolesValides.every(roleId => interaction.member.roles.cache.has(roleId)) &&
+                    (!v.pendingRoleId || !interaction.member.roles.cache.has(v.pendingRoleId));
+
+                if (dejaValide) {
+                    await interaction.reply({
+                        content: '✅ Ton compte est déjà validé sur ce serveur.',
+                        flags: MessageFlags.Ephemeral
+                    });
+                    programmerSuppressionEphemere(interaction, 15000);
+                    return;
+                }
+
+                const modal = new ModalBuilder()
+                    .setCustomId('modal_verification_identity')
+                    .setTitle('Identité RP');
+
+                const nom = new TextInputBuilder()
+                    .setCustomId('verification_last_name')
+                    .setLabel('Nom RP')
+                    .setPlaceholder('Ex : BUFFALO')
+                    .setStyle(TextInputStyle.Short)
+                    .setRequired(true)
+                    .setMinLength(2)
+                    .setMaxLength(20);
+
+                const prenom = new TextInputBuilder()
+                    .setCustomId('verification_first_name')
+                    .setLabel('Prénom RP')
+                    .setPlaceholder('Ex : Joshua')
+                    .setStyle(TextInputStyle.Short)
+                    .setRequired(true)
+                    .setMinLength(2)
+                    .setMaxLength(20);
+
+                modal.addComponents(
+                    new ActionRowBuilder().addComponents(nom),
+                    new ActionRowBuilder().addComponents(prenom)
+                );
+
+                await interaction.showModal(modal);
+                return;
+            }
+
+
+            // --------------------------------------------------
+            // VALIDATION DE L'IDENTITÉ RP
+            // --------------------------------------------------
+
+            if (
+                interaction.isModalSubmit() &&
+                interaction.customId === 'modal_verification_identity'
+            ) {
+                await interaction.deferReply({
+                    flags: MessageFlags.Ephemeral
+                });
+
+                const config = chargerConfigServeur(interaction.guild.id);
+                const v = config.verification;
+
+                if (!v?.enabled) {
+                    await interaction.editReply('❌ La vérification est actuellement désactivée.');
+                    programmerSuppressionEphemere(interaction, 15000);
+                    return;
+                }
+
+                const nettoyerNom = valeur =>
+                    String(valeur || '')
+                        .trim()
+                        .replace(/\s+/g, ' ')
+                        .replace(/[^\p{L}\p{M}' -]/gu, '');
+
+                const nomBrut = nettoyerNom(
+                    interaction.fields.getTextInputValue('verification_last_name')
+                );
+                const prenomBrut = nettoyerNom(
+                    interaction.fields.getTextInputValue('verification_first_name')
+                );
+
+                if (nomBrut.length < 2 || prenomBrut.length < 2) {
+                    await interaction.editReply('❌ Le nom et le prénom RP ne sont pas valides.');
+                    programmerSuppressionEphemere(interaction, 15000);
+                    return;
+                }
+
+                const nomRp = nomBrut.toLocaleUpperCase('fr-FR');
+                const prenomRp = prenomBrut
+                    .toLocaleLowerCase('fr-FR')
+                    .replace(/(^|[ '\-])\p{L}/gu, lettre => lettre.toLocaleUpperCase('fr-FR'));
+
+                const pseudo = `${nomRp} | ${prenomRp}`.slice(0, 32);
+                const rolesValides = Array.isArray(v.verifiedRoleIds)
+                    ? v.verifiedRoleIds
+                    : [];
+
+                const rolesAjoutes = [];
+                const rolesEchoues = [];
+
+                for (const roleId of rolesValides) {
+                    const role =
+                        interaction.guild.roles.cache.get(roleId)
+                        ||
+                        await interaction.guild.roles.fetch(roleId).catch(() => null);
+
+                    if (!role || !role.editable) {
+                        rolesEchoues.push(roleId);
+                        continue;
+                    }
+
+                    try {
+                        await interaction.member.roles.add(
+                            role,
+                            'ORYUM SYSTEMS • Validation du règlement'
+                        );
+                        rolesAjoutes.push(roleId);
+                    }
+                    catch (_) {
+                        rolesEchoues.push(roleId);
+                    }
+                }
+
+                if (v.pendingRoleId) {
+                    const roleAttente =
+                        interaction.guild.roles.cache.get(v.pendingRoleId)
+                        ||
+                        await interaction.guild.roles.fetch(v.pendingRoleId).catch(() => null);
+
+                    if (
+                        roleAttente &&
+                        roleAttente.editable &&
+                        interaction.member.roles.cache.has(roleAttente.id)
+                    ) {
+                        await interaction.member.roles.remove(
+                            roleAttente,
+                            'ORYUM SYSTEMS • Validation terminée'
+                        ).catch(() => {});
+                    }
+                }
+
+                let pseudoModifie = false;
+                if (interaction.member.manageable) {
+                    try {
+                        await interaction.member.setNickname(
+                            pseudo,
+                            'ORYUM SYSTEMS • Identité RP validée'
+                        );
+                        pseudoModifie = true;
+                    }
+                    catch (_) {}
+                }
+
+                let message =
+                    `✅ **Validation terminée !**\n` +
+                    `🏷️ Identité RP : **${pseudo}**\n` +
+                    `🎭 Rôles attribués : **${rolesAjoutes.length}**`;
+
+                if (!pseudoModifie) {
+                    message += '\n⚠️ ORYUM n’a pas pu modifier ton pseudo. Vérifie la hiérarchie des rôles du bot.';
+                }
+
+                if (rolesEchoues.length) {
+                    message += `\n⚠️ ${rolesEchoues.length} rôle(s) n’ont pas pu être attribués.`;
+                }
+
+                await interaction.editReply(message);
+                programmerSuppressionEphemere(interaction, 20000);
+                return;
             }
 
 
