@@ -118,8 +118,9 @@ function configBaseServeur() {
 
         access: {
 
-            staffRoleId:
-                ''
+            // Rôles autorisés à utiliser les commandes et panneaux ORYUM SYSTEMS
+            staffRoleIds:
+                []
 
         },
 
@@ -130,8 +131,9 @@ function configBaseServeur() {
 
         tickets: {
 
-            staffRoleId:
-                '',
+            // Rôles autorisés à voir, écrire et gérer les tickets
+            ticketAccessRoleIds:
+                [],
 
             logsChannelId:
                 '',
@@ -570,9 +572,75 @@ function chargerConfigServeur(
     );
 
 
-    return globalConfig.guilds[
-        guildId
-    ];
+    // --------------------------------------------------
+    // Migration des anciens rôles Staff vers l'accès général
+    // --------------------------------------------------
+    const configServeur =
+        globalConfig.guilds[
+            guildId
+        ];
+
+    if (
+        !Array.isArray(
+            configServeur.access.staffRoleIds
+        )
+    ) {
+        configServeur.access.staffRoleIds = [];
+    }
+
+    const anciensRolesStaff = [
+        configServeur.access.staffRoleId,
+        configServeur.tickets.staffRoleId
+    ].filter(Boolean);
+
+    let migrationEffectuee = false;
+
+    for (
+        const roleId
+        of anciensRolesStaff
+    ) {
+        if (
+            !configServeur.access.staffRoleIds.includes(
+                roleId
+            )
+        ) {
+            configServeur.access.staffRoleIds.push(
+                roleId
+            );
+            migrationEffectuee = true;
+        }
+    }
+
+    if (
+        Object.prototype.hasOwnProperty.call(
+            configServeur.access,
+            'staffRoleId'
+        )
+    ) {
+        delete configServeur.access.staffRoleId;
+        migrationEffectuee = true;
+    }
+
+    if (
+        Object.prototype.hasOwnProperty.call(
+            configServeur.tickets,
+            'staffRoleId'
+        )
+    ) {
+        delete configServeur.tickets.staffRoleId;
+        migrationEffectuee = true;
+    }
+
+    if (
+        migrationEffectuee
+    ) {
+        sauvegarderConfigGlobale(
+            globalConfig
+        );
+    }
+
+
+    return configServeur;
 
 }
 
@@ -794,21 +862,20 @@ function utilisateurPeutAdministrerBot(
     }
 
 
-    const roleId =
-        config?.access?.staffRoleId;
-
-
-    if (
-        roleId &&
-        interaction.member.roles?.cache?.has(
-            roleId
+    const roleIds =
+        Array.isArray(
+            config?.access?.staffRoleIds
         )
-    ) {
-        return true;
-    }
+            ? config.access.staffRoleIds
+            : [];
 
 
-    return false;
+    return roleIds.some(
+        roleId =>
+            interaction.member.roles?.cache?.has(
+                roleId
+            )
+    );
 
 }
 
@@ -1497,6 +1564,27 @@ function creerEmbedConfigTickets(
         ).length;
 
 
+    const rolesAccesTickets =
+        Array.isArray(
+            config.tickets.ticketAccessRoleIds
+        )
+            ? config.tickets.ticketAccessRoleIds
+            : [];
+
+
+    const texteRolesAcces =
+        rolesAccesTickets.length
+            ? rolesAccesTickets
+                .slice(0, 10)
+                .map(roleId => `<@&${roleId}>`)
+                .join(' • ') +
+                (rolesAccesTickets.length > 10
+                    ? `
++${rolesAccesTickets.length - 10} autre(s)`
+                    : '')
+            : '❌ Aucun rôle configuré';
+
+
     return new EmbedBuilder()
 
         .setColor(
@@ -1515,16 +1603,15 @@ function creerEmbedConfigTickets(
 
             {
                 name:
-                    '🛡️ Rôle Staff',
+                    '🎟️ Accès aux tickets',
 
                 value:
-                    config.tickets.staffRoleId
-                        ? `<@&${config.tickets.staffRoleId}>`
-                        : '❌ Non configuré',
+                    texteRolesAcces,
 
                 inline:
-                    true
+                    false
             },
+
 
             {
                 name:
@@ -3603,7 +3690,7 @@ function creerPanelPrincipalAdmin(guild) {
     );
 
     const ligneAcces = new ActionRowBuilder().addComponents(
-        new ButtonBuilder().setCustomId('admin_access').setLabel('Accès Staff').setEmoji('🔐').setStyle(ButtonStyle.Secondary)
+        new ButtonBuilder().setCustomId('admin_access').setLabel('Accès Bot').setEmoji('🔐').setStyle(ButtonStyle.Secondary)
     );
 
     return { embeds: [embed], components: [ligne, ligneAcces] };
@@ -3674,7 +3761,7 @@ client.on(
                     await interaction.reply({
 
                         content:
-                            '❌ ORYUM SYSTEMS est réservé au Staff autorisé sur ce serveur.',
+                            '❌ Tu n’as pas l’autorisation d’utiliser ORYUM SYSTEMS sur ce serveur.',
 
                         flags:
                             MessageFlags.Ephemeral
@@ -3826,7 +3913,7 @@ client.on(
                                 )
 
                                 .setLabel(
-                                    'Accès Staff'
+                                    'Accès Bot'
                                 )
 
                                 .setEmoji(
@@ -3874,7 +3961,7 @@ client.on(
 
                 if (!utilisateurPeutAdministrerBot(interaction, config)) {
                     await interaction.reply({
-                        content: '❌ ORYUM SYSTEMS est réservé au Staff autorisé sur ce serveur.',
+                        content: '❌ Tu n’as pas l’autorisation d’utiliser ORYUM SYSTEMS sur ce serveur.',
                         flags: MessageFlags.Ephemeral
                     });
                     programmerSuppressionEphemere(interaction, 15000);
@@ -3888,7 +3975,7 @@ client.on(
             }
 
             // ==================================================
-            // PANEL ACCÈS STAFF ORYUM SYSTEMS
+            // PANEL ACCÈS ORYUM SYSTEMS
             // ==================================================
 
             if (
@@ -3902,6 +3989,25 @@ client.on(
                         interaction.guild.id
                     );
 
+                const rolesAutorises =
+                    Array.isArray(
+                        config.access.staffRoleIds
+                    )
+                        ? config.access.staffRoleIds
+                        : [];
+
+                const listeRoles =
+                    rolesAutorises.length
+                        ? rolesAutorises
+                            .map(
+                                roleId =>
+                                    `<@&${roleId}>`
+                            )
+                            .join(
+                                '\n'
+                            )
+                        : 'Administrateurs Discord uniquement.';
+
 
                 const embed =
                     new EmbedBuilder()
@@ -3911,17 +4017,25 @@ client.on(
                         )
 
                         .setTitle(
-                            '🔐 ORYUM SYSTEMS // ACCÈS STAFF'
+                            '🔐 ORYUM SYSTEMS // ACCÈS AU BOT'
                         )
 
                         .setDescription(
-                            'Choisis le rôle autorisé à utiliser les commandes et panneaux d’administration d’ORYUM SYSTEMS.\n\n' +
-                            '**Les Administrateurs Discord restent toujours autorisés.**\n\n' +
-                            `Rôle actuel : ${
-                                config.access.staffRoleId
-                                    ? `<@&${config.access.staffRoleId}>`
-                                    : 'Administrateurs uniquement'
-                            }`
+                            'Choisis les rôles autorisés à utiliser les commandes et panneaux d’administration d’ORYUM SYSTEMS.\n\n' +
+                            '**Les Administrateurs Discord restent toujours autorisés.**'
+                        )
+
+                        .addFields(
+                            {
+                                name:
+                                    '🛡️ Rôles autorisés',
+
+                                value:
+                                    listeRoles,
+
+                                inline:
+                                    false
+                            }
                         );
 
 
@@ -3933,11 +4047,11 @@ client.on(
                             new ButtonBuilder()
 
                                 .setCustomId(
-                                    'access_staff_role'
+                                    'access_staff_roles'
                                 )
 
                                 .setLabel(
-                                    'Choisir le rôle'
+                                    'Choisir les rôles'
                                 )
 
                                 .setEmoji(
@@ -3991,18 +4105,30 @@ client.on(
             if (
                 interaction.isButton() &&
                 interaction.customId ===
-                    'access_staff_role'
+                    'access_staff_roles'
             ) {
+
+                const config =
+                    chargerConfigServeur(
+                        interaction.guild.id
+                    );
+
+                const actuels =
+                    Array.isArray(
+                        config.access.staffRoleIds
+                    )
+                        ? config.access.staffRoleIds
+                        : [];
 
                 const menu =
                     new RoleSelectMenuBuilder()
 
                         .setCustomId(
-                            'select_access_staff_role'
+                            'select_access_staff_roles'
                         )
 
                         .setPlaceholder(
-                            'Choisis le rôle Staff autorisé'
+                            'Choisis les rôles autorisés à utiliser ORYUM'
                         )
 
                         .setMinValues(
@@ -4010,14 +4136,29 @@ client.on(
                         )
 
                         .setMaxValues(
-                            1
+                            10
                         );
+
+                const texteActuel =
+                    actuels.length
+                        ? actuels
+                            .map(
+                                roleId =>
+                                    `<@&${roleId}>`
+                            )
+                            .join(
+                                ' • '
+                            )
+                        : 'Aucun rôle configuré.';
 
 
                 await interaction.reply({
 
                     content:
-                        '🛡️ Choisis le rôle qui pourra administrer ORYUM SYSTEMS :',
+                        '🔐 **Accès à ORYUM SYSTEMS**\n' +
+                        'Sélectionne jusqu’à **10 rôles** autorisés à utiliser le bot et ses panneaux de configuration.\n\n' +
+                        `**Actuellement :** ${texteActuel}\n\n` +
+                        'La nouvelle sélection remplacera la sélection actuelle.',
 
                     components: [
 
@@ -4032,7 +4173,11 @@ client.on(
                         MessageFlags.Ephemeral
 
                 });
-                programmerSuppressionEphemere(interaction, 30000);
+
+                programmerSuppressionEphemere(
+                    interaction,
+                    30000
+                );
 
 
                 return;
@@ -4043,7 +4188,7 @@ client.on(
             if (
                 interaction.isRoleSelectMenu() &&
                 interaction.customId ===
-                    'select_access_staff_role'
+                    'select_access_staff_roles'
             ) {
 
                 const config =
@@ -4051,9 +4196,20 @@ client.on(
                         interaction.guild.id
                     );
 
+                const roleIds =
+                    [...new Set(
+                        interaction.values
+                    )]
+                        .filter(
+                            roleId =>
+                                interaction.guild.roles.cache.has(
+                                    roleId
+                                )
+                        );
 
-                config.access.staffRoleId =
-                    interaction.values[0];
+
+                config.access.staffRoleIds =
+                    roleIds;
 
 
                 sauvegarderConfigServeur(
@@ -4062,15 +4218,31 @@ client.on(
                 );
 
 
+                const liste =
+                    roleIds
+                        .map(
+                            roleId =>
+                                `<@&${roleId}>`
+                        )
+                        .join(
+                            ' • '
+                        );
+
+
                 await interaction.update({
 
                     content:
-                        `✅ Le rôle <@&${interaction.values[0]}> peut maintenant administrer ORYUM SYSTEMS.`,
+                        `✅ Accès à ORYUM SYSTEMS configuré pour : ${liste}`,
 
                     components:
                         []
 
                 });
+
+                programmerSuppressionEphemere(
+                    interaction,
+                    15000
+                );
 
 
                 return;
@@ -4090,8 +4262,8 @@ client.on(
                     );
 
 
-                config.access.staffRoleId =
-                    '';
+                config.access.staffRoleIds =
+                    [];
 
 
                 sauvegarderConfigServeur(
@@ -4103,7 +4275,7 @@ client.on(
                 await interaction.update({
 
                     content:
-                        '✅ ORYUM SYSTEMS est maintenant administrable uniquement par les Administrateurs Discord.',
+                        '✅ ORYUM SYSTEMS est maintenant utilisable uniquement par les Administrateurs Discord.',
 
                     embeds:
                         [],
@@ -4112,6 +4284,11 @@ client.on(
                         []
 
                 });
+
+                programmerSuppressionEphemere(
+                    interaction,
+                    15000
+                );
 
 
                 return;
@@ -4713,175 +4890,97 @@ client.on(
                     'admin_tickets'
             ) {
 
+                // --------------------------------------------------
+                // Ligne 1 : accès et permissions
+                // --------------------------------------------------
                 const ligne1 =
                     new ActionRowBuilder()
-
                         .addComponents(
 
                             new ButtonBuilder()
-
-                                .setCustomId(
-                                    'ticket_staff_role'
-                                )
-
-                                .setLabel(
-                                    'Rôle Staff'
-                                )
-
-                                .setEmoji(
-                                    '🛡️'
-                                )
-
-                                .setStyle(
-                                    ButtonStyle.Primary
-                                ),
-
+                                .setCustomId('ticket_access_roles')
+                                .setLabel('Accès tickets')
+                                .setEmoji('🎟️')
+                                .setStyle(ButtonStyle.Primary),
 
                             new ButtonBuilder()
-
-                                .setCustomId(
-                                    'ticket_logs_channel'
-                                )
-
-                                .setLabel(
-                                    'Salon Logs'
-                                )
-
-                                .setEmoji(
-                                    '📜'
-                                )
-
-                                .setStyle(
-                                    ButtonStyle.Secondary
-                                ),
-
+                                .setCustomId('ticket_access_roles_clear')
+                                .setLabel('Effacer accès')
+                                .setEmoji('🧹')
+                                .setStyle(ButtonStyle.Secondary),
 
                             new ButtonBuilder()
-
-                                .setCustomId(
-                                    'ticket_staff_add'
-                                )
-
-                                .setLabel(
-                                    'Ajouter Staff'
-                                )
-
-                                .setEmoji(
-                                    '➕'
-                                )
-
-                                .setStyle(
-                                    ButtonStyle.Success
-                                ),
-
-
-                            new ButtonBuilder()
-
-                                .setCustomId(
-                                    'ticket_staff_remove'
-                                )
-
-                                .setLabel(
-                                    'Retirer Staff'
-                                )
-
-                                .setEmoji(
-                                    '➖'
-                                )
-
-                                .setStyle(
-                                    ButtonStyle.Danger
-                                )
+                                .setCustomId('ticket_logs_channel')
+                                .setLabel('Salon Logs')
+                                .setEmoji('📜')
+                                .setStyle(ButtonStyle.Secondary)
 
                         );
 
 
+                // --------------------------------------------------
+                // Ligne 2 : membres Staff individuels
+                // --------------------------------------------------
                 const ligne2 =
                     new ActionRowBuilder()
-
                         .addComponents(
 
                             new ButtonBuilder()
-
-                                .setCustomId(
-                                    'ticket_type_add'
-                                )
-
-                                .setLabel(
-                                    'Ajouter type'
-                                )
-
-                                .setEmoji(
-                                    '📂'
-                                )
-
-                                .setStyle(
-                                    ButtonStyle.Success
-                                ),
-
+                                .setCustomId('ticket_staff_add')
+                                .setLabel('Ajouter Staff')
+                                .setEmoji('➕')
+                                .setStyle(ButtonStyle.Success),
 
                             new ButtonBuilder()
-
-                                .setCustomId(
-                                    'ticket_type_remove'
-                                )
-
-                                .setLabel(
-                                    'Supprimer type'
-                                )
-
-                                .setEmoji(
-                                    '🗑️'
-                                )
-
-                                .setStyle(
-                                    ButtonStyle.Danger
-                                ),
-
-
-                            new ButtonBuilder()
-
-                                .setCustomId(
-                                    'ticket_panel_style'
-                                )
-
-                                .setLabel(
-                                    'Style panneau'
-                                )
-
-                                .setEmoji(
-                                    '🎨'
-                                )
-
-                                .setStyle(
-                                    ButtonStyle.Secondary
-                                ),
-
-
-                            new ButtonBuilder()
-
-                                .setCustomId(
-                                    'ticket_embed_style'
-                                )
-
-                                .setLabel(
-                                    'Style ticket'
-                                )
-
-                                .setEmoji(
-                                    '📝'
-                                )
-
-                                .setStyle(
-                                    ButtonStyle.Secondary
-                                )
+                                .setCustomId('ticket_staff_remove')
+                                .setLabel('Retirer Staff')
+                                .setEmoji('➖')
+                                .setStyle(ButtonStyle.Danger)
 
                         );
 
 
+                // --------------------------------------------------
+                // Ligne 3 : types de tickets
+                // --------------------------------------------------
                 const ligne3 =
                     new ActionRowBuilder()
                         .addComponents(
+
+                            new ButtonBuilder()
+                                .setCustomId('ticket_type_add')
+                                .setLabel('Ajouter type')
+                                .setEmoji('📂')
+                                .setStyle(ButtonStyle.Success),
+
+                            new ButtonBuilder()
+                                .setCustomId('ticket_type_remove')
+                                .setLabel('Supprimer type')
+                                .setEmoji('🗑️')
+                                .setStyle(ButtonStyle.Danger)
+
+                        );
+
+
+                // --------------------------------------------------
+                // Ligne 4 : apparence du système de tickets
+                // --------------------------------------------------
+                const ligne4 =
+                    new ActionRowBuilder()
+                        .addComponents(
+
+                            new ButtonBuilder()
+                                .setCustomId('ticket_panel_style')
+                                .setLabel('Style panneau')
+                                .setEmoji('🎨')
+                                .setStyle(ButtonStyle.Secondary),
+
+                            new ButtonBuilder()
+                                .setCustomId('ticket_embed_style')
+                                .setLabel('Style ticket')
+                                .setEmoji('📝')
+                                .setStyle(ButtonStyle.Secondary),
+
                             new ButtonBuilder()
                                 .setCustomId('ticket_panel_logo')
                                 .setLabel('Logo panneau')
@@ -4899,23 +4998,23 @@ client.on(
                                 .setLabel('Couleur bouton')
                                 .setEmoji('🎨')
                                 .setStyle(ButtonStyle.Secondary)
+
                         );
 
 
                 await interaction.update({
 
                     embeds: [
-
                         creerEmbedConfigTickets(
                             interaction.guild.id
                         )
-
                     ],
 
                     components: [
                         ligne1,
                         ligne2,
                         ligne3,
+                        ligne4,
                         creerLigneRetourAdmin()
                     ]
 
@@ -5097,69 +5196,12 @@ client.on(
 
 
             // ==================================================
-            // CHOISIR RÔLE STAFF
+            // RÔLES AYANT ACCÈS AUX TICKETS
             // ==================================================
 
             if (
                 interaction.isButton() &&
-                interaction.customId ===
-                    'ticket_staff_role'
-            ) {
-
-                const menu =
-                    new RoleSelectMenuBuilder()
-
-                        .setCustomId(
-                            'select_ticket_staff_role'
-                        )
-
-                        .setPlaceholder(
-                            'Choisis le rôle Staff'
-                        )
-
-                        .setMinValues(
-                            1
-                        )
-
-                        .setMaxValues(
-                            1
-                        );
-
-
-                await interaction.reply({
-
-                    content:
-                        '🛡️ Choisis le rôle Staff pour les tickets :',
-
-                    components: [
-
-                        new ActionRowBuilder()
-                            .addComponents(
-                                menu
-                            )
-
-                    ],
-
-                    flags:
-                        MessageFlags.Ephemeral
-
-                });
-                programmerSuppressionEphemere(interaction, 30000);
-
-
-                return;
-
-            }
-
-
-            // ==================================================
-            // SAUVEGARDER RÔLE STAFF
-            // ==================================================
-
-            if (
-                interaction.isRoleSelectMenu() &&
-                interaction.customId ===
-                    'select_ticket_staff_role'
+                interaction.customId === 'ticket_access_roles'
             ) {
 
                 const config =
@@ -5167,30 +5209,104 @@ client.on(
                         interaction.guild.id
                     );
 
+                const actuels =
+                    Array.isArray(config.tickets.ticketAccessRoleIds)
+                        ? config.tickets.ticketAccessRoleIds
+                        : [];
 
-                config.tickets.staffRoleId =
-                    interaction.values[0];
+                const menu =
+                    new RoleSelectMenuBuilder()
+                        .setCustomId('select_ticket_access_roles')
+                        .setPlaceholder('Choisis les rôles ayant accès aux tickets')
+                        .setMinValues(1)
+                        .setMaxValues(10);
 
+                const texteActuel =
+                    actuels.length
+                        ? actuels.map(id => `<@&${id}>`).join(' • ')
+                        : 'Aucun rôle configuré.';
+
+                await interaction.reply({
+                    content:
+                        '🎟️ **Rôles ayant accès aux tickets**\n' +
+                        'Les rôles sélectionnés pourront voir et écrire dans tous les nouveaux tickets.\n\n' +
+                        `**Actuellement :** ${texteActuel}\n\n` +
+                        'La nouvelle sélection remplacera la sélection actuelle.',
+                    components: [
+                        new ActionRowBuilder()
+                            .addComponents(menu)
+                    ],
+                    flags: MessageFlags.Ephemeral
+                });
+
+                programmerSuppressionEphemere(interaction, 30000);
+                return;
+            }
+
+
+            if (
+                interaction.isRoleSelectMenu() &&
+                interaction.customId === 'select_ticket_access_roles'
+            ) {
+
+                const config =
+                    chargerConfigServeur(
+                        interaction.guild.id
+                    );
+
+                const roleIds =
+                    [...new Set(interaction.values)]
+                        .filter(roleId =>
+                            interaction.guild.roles.cache.has(roleId)
+                        );
+
+                config.tickets.ticketAccessRoleIds =
+                    roleIds;
 
                 sauvegarderConfigServeur(
                     interaction.guild.id,
                     config
                 );
 
+                const liste =
+                    roleIds.map(id => `<@&${id}>`).join(' • ');
 
                 await interaction.update({
-
                     content:
-                        `✅ Rôle Staff configuré : <@&${interaction.values[0]}>`,
-
-                    components:
-                        []
-
+                        `✅ Accès aux tickets configuré pour : ${liste}`,
+                    components: []
                 });
 
-
+                programmerSuppressionEphemere(interaction, 15000);
                 return;
+            }
 
+
+            if (
+                interaction.isButton() &&
+                interaction.customId === 'ticket_access_roles_clear'
+            ) {
+
+                const config =
+                    chargerConfigServeur(
+                        interaction.guild.id
+                    );
+
+                config.tickets.ticketAccessRoleIds = [];
+
+                sauvegarderConfigServeur(
+                    interaction.guild.id,
+                    config
+                );
+
+                await interaction.reply({
+                    content:
+                        '✅ La liste des rôles ayant accès aux tickets a été vidée.',
+                    flags: MessageFlags.Ephemeral
+                });
+
+                programmerSuppressionEphemere(interaction, 15000);
+                return;
             }
 
 
@@ -6831,7 +6947,7 @@ client.on(
                     await interaction.reply({
 
                         content:
-                            '❌ Seul le Staff autorisé peut créer le panneau des tickets.',
+                            '❌ Tu n’as pas l’autorisation de créer le panneau des tickets.',
 
                         flags:
                             MessageFlags.Ephemeral
@@ -7323,14 +7439,38 @@ client.on(
                 ];
 
 
-                if (
-                    config.tickets.staffRoleId
+                // --------------------------------------------------
+                // Rôles autorisés à voir les tickets
+                // --------------------------------------------------
+
+                const rolesAccesTickets =
+                    Array.isArray(
+                        config.tickets.ticketAccessRoleIds
+                    )
+                        ? config.tickets.ticketAccessRoleIds
+                        : [];
+
+
+                for (
+                    const roleId
+                    of rolesAccesTickets
                 ) {
+
+                    const role =
+                        interaction.guild.roles.cache.get(
+                            roleId
+                        );
+
+                    if (
+                        !role ||
+                        role.id === interaction.guild.roles.everyone.id
+                    ) {
+                        continue;
+                    }
 
                     permissions.push({
 
-                        id:
-                            config.tickets.staffRoleId,
+                        id: role.id,
 
                         allow: [
                             PermissionFlagsBits.ViewChannel,
@@ -7504,11 +7644,20 @@ client.on(
                 await ticketChannel.send({
 
                     content:
-                        config.tickets.staffRoleId
-
-                            ? `${interaction.user} <@&${config.tickets.staffRoleId}>`
-
-                            : `${interaction.user}`,
+                        [
+                            `${interaction.user}`,
+                            ...(
+                                Array.isArray(
+                                    config.tickets.ticketAccessRoleIds
+                                )
+                                    ? config.tickets.ticketAccessRoleIds
+                                        .map(
+                                            roleId =>
+                                                `<@&${roleId}>`
+                                        )
+                                    : []
+                            )
+                        ].join(' '),
 
                     embeds: [
                         embed
@@ -7525,12 +7674,10 @@ client.on(
                         ],
 
                         roles:
-                            config.tickets.staffRoleId
-
-                                ? [
-                                    config.tickets.staffRoleId
-                                ]
-
+                            Array.isArray(
+                                config.tickets.ticketAccessRoleIds
+                            )
+                                ? config.tickets.ticketAccessRoleIds
                                 : []
 
                     }
@@ -7610,14 +7757,16 @@ client.on(
                     );
 
 
-                const aRoleStaff =
-                    config.tickets.staffRoleId
-
-                        ? membre.roles.cache.has(
-                            config.tickets.staffRoleId
-                        )
-
-                        : false;
+                const aRoleTicket =
+                    Array.isArray(
+                        config.tickets.ticketAccessRoleIds
+                    ) &&
+                    config.tickets.ticketAccessRoleIds.some(
+                        roleId =>
+                            membre.roles.cache.has(
+                                roleId
+                            )
+                    );
 
 
                 const estStaffConfigure =
@@ -7630,14 +7779,14 @@ client.on(
 
                 if (
                     !estAdmin &&
-                    !aRoleStaff &&
+                    !aRoleTicket &&
                     !estStaffConfigure
                 ) {
 
                     await interaction.reply({
 
                         content:
-                            '❌ Tu ne fais pas partie du Staff Tickets.',
+                            '❌ Tu n’as pas l’autorisation de gérer ce ticket.',
 
                         flags:
                             MessageFlags.Ephemeral
@@ -8018,14 +8167,16 @@ client.on(
                     );
 
 
-                const aRoleStaff =
-                    config.tickets.staffRoleId
-
-                        ? membre.roles.cache.has(
-                            config.tickets.staffRoleId
-                        )
-
-                        : false;
+                const aRoleTicket =
+                    Array.isArray(
+                        config.tickets.ticketAccessRoleIds
+                    ) &&
+                    config.tickets.ticketAccessRoleIds.some(
+                        roleId =>
+                            membre.roles.cache.has(
+                                roleId
+                            )
+                    );
 
 
                 const estStaffConfigure =
@@ -8038,14 +8189,14 @@ client.on(
 
                 if (
                     !estAdmin &&
-                    !aRoleStaff &&
+                    !aRoleTicket &&
                     !estStaffConfigure
                 ) {
 
                     await interaction.reply({
 
                         content:
-                            '❌ Seul le Staff peut fermer ce ticket.',
+                            '❌ Tu n’as pas l’autorisation de fermer ce ticket.',
 
                         flags:
                             MessageFlags.Ephemeral
