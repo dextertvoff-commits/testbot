@@ -43,6 +43,8 @@ const client = new Client({
 
         GatewayIntentBits.GuildMessages,
 
+        GatewayIntentBits.GuildVoiceStates,
+
         GatewayIntentBits.MessageContent
 
     ]
@@ -373,6 +375,24 @@ function configBaseServeur() {
 
             panelImageUrl:
                 ''
+
+        },
+
+
+        // ==================================================
+        // VOCAUX ÉPHÉMÈRES
+        // ==================================================
+
+        temporaryVoices: {
+
+            enabled:
+                false,
+
+            creators:
+                {},
+
+            activeChannels:
+                {}
 
         },
 
@@ -2685,6 +2705,16 @@ const commands = [
             'Ouvrir le panneau d’administration du bot'
         )
 
+        .toJSON(),
+
+
+    new SlashCommandBuilder()
+        .setName('vocal')
+        .setDescription('Gérer ton salon vocal éphémère')
+        .addSubcommand(sub => sub.setName('renommer').setDescription('Renommer ton vocal éphémère').addStringOption(opt => opt.setName('nom').setDescription('Nouveau nom du salon').setRequired(true).setMaxLength(100)))
+        .addSubcommand(sub => sub.setName('limite').setDescription('Changer la limite de places').addIntegerOption(opt => opt.setName('places').setDescription('0 = illimité').setRequired(true).setMinValue(0).setMaxValue(99)))
+        .addSubcommand(sub => sub.setName('verrouiller').setDescription('Verrouiller ton vocal'))
+        .addSubcommand(sub => sub.setName('deverrouiller').setDescription('Déverrouiller ton vocal'))
         .toJSON()
 
 ];
@@ -3922,6 +3952,94 @@ function formaterPseudoVerification(
 
 
 // ======================================================
+// VOCAUX ÉPHÉMÈRES - ÉTAT TEMPORAIRE
+// ======================================================
+
+const temporaryVoiceSetupPending = new Map();
+const temporaryVoiceEditPending = new Map();
+
+function cleUtilisateurServeur(guildId, userId) {
+    return `${guildId}:${userId}`;
+}
+
+function obtenirConfigVocauxTemporaires(config) {
+    if (!config.temporaryVoices || typeof config.temporaryVoices !== 'object') {
+        config.temporaryVoices = { enabled: false, creators: {}, activeChannels: {} };
+    }
+    if (!config.temporaryVoices.creators || typeof config.temporaryVoices.creators !== 'object') config.temporaryVoices.creators = {};
+    if (!config.temporaryVoices.activeChannels || typeof config.temporaryVoices.activeChannels !== 'object') config.temporaryVoices.activeChannels = {};
+    return config.temporaryVoices;
+}
+
+function formatNomVocalTemporaire(format, member, numero = 1) {
+    const pseudo = member.user.username;
+    const display = member.displayName || member.user.globalName || member.user.username;
+    const global = member.user.globalName || member.user.username;
+    return String(format || '🎙️ Vocal de {DISPLAYNAME}')
+        .replaceAll('{PSEUDO}', pseudo)
+        .replaceAll('{USERNAME}', pseudo)
+        .replaceAll('{DISPLAYNAME}', display)
+        .replaceAll('{GLOBALNAME}', global)
+        .replaceAll('{NUMBER}', String(numero))
+        .replace(/\s+/g, ' ')
+        .trim()
+        .slice(0, 100);
+}
+
+function trouverProfilCreateurParSalon(config, channelId) {
+    const tv = obtenirConfigVocauxTemporaires(config);
+    return Object.entries(tv.creators).find(([, profil]) => profil && profil.triggerChannelId === channelId) || null;
+}
+
+function creerEmbedConfigVocauxTemporaires(guild, config) {
+    const tv = obtenirConfigVocauxTemporaires(config);
+    const profils = Object.values(tv.creators);
+    const lignes = profils.length
+        ? profils.slice(0, 20).map((p, i) => {
+            const salon = p.triggerChannelId ? `<#${p.triggerChannelId}>` : 'Salon manquant';
+            const cat = p.categoryId ? `<#${p.categoryId}>` : 'Sans catégorie';
+            const limite = Number(p.userLimit) || 0;
+            return `**${i + 1}.** ${salon} → \`${p.voiceNameFormat || '🎙️ Vocal de {DISPLAYNAME}'}\` • ${limite || '∞'} places • ${cat}`;
+        }).join('\n')
+        : 'Aucun salon créateur configuré.';
+
+    return new EmbedBuilder()
+        .setColor(tv.enabled ? '#57F287' : '#ED4245')
+        .setTitle('🔊 ORYUM SYSTEMS // VOCAUX ÉPHÉMÈRES')
+        .setDescription('Crée plusieurs salons déclencheurs. Lorsqu’un membre rejoint l’un d’eux, ORYUM crée automatiquement son vocal, le déplace dedans puis supprime le salon lorsqu’il est vide.')
+        .addFields(
+            { name: '⚙️ État', value: tv.enabled ? '✅ Activé' : '❌ Désactivé', inline: true },
+            { name: '🧩 Salons créateurs', value: `${profils.length}`, inline: true },
+            { name: '📋 Configuration', value: lignes, inline: false }
+        )
+        .setFooter({ text: `Serveur : ${guild.name}` });
+}
+
+function creerComposantsVocauxTemporaires(config) {
+    const tv = obtenirConfigVocauxTemporaires(config);
+    const ligne1 = new ActionRowBuilder().addComponents(
+        new ButtonBuilder().setCustomId('tempvoice_toggle').setLabel(tv.enabled ? 'Désactiver' : 'Activer').setEmoji(tv.enabled ? '⛔' : '✅').setStyle(tv.enabled ? ButtonStyle.Danger : ButtonStyle.Success),
+        new ButtonBuilder().setCustomId('tempvoice_add').setLabel('Ajouter un créateur').setEmoji('➕').setStyle(ButtonStyle.Primary),
+        new ButtonBuilder().setCustomId('tempvoice_edit').setLabel('Modifier').setEmoji('✏️').setStyle(ButtonStyle.Secondary),
+        new ButtonBuilder().setCustomId('tempvoice_delete').setLabel('Supprimer').setEmoji('🗑️').setStyle(ButtonStyle.Danger)
+    );
+    return [ligne1, creerLigneRetourAdmin()];
+}
+
+function creerMenuProfilsVocaux(config, customId, placeholder) {
+    const tv = obtenirConfigVocauxTemporaires(config);
+    const options = Object.entries(tv.creators).slice(0, 25).map(([id, p]) => ({
+        label: String(p.triggerName || 'Salon créateur').slice(0, 100),
+        description: String(p.voiceNameFormat || 'Vocal temporaire').slice(0, 100),
+        value: id
+    }));
+    if (!options.length) return null;
+    return new ActionRowBuilder().addComponents(
+        new StringSelectMenuBuilder().setCustomId(customId).setPlaceholder(placeholder).addOptions(options)
+    );
+}
+
+// ======================================================
 // DÉBUT DES INTERACTIONS
 // ======================================================
 
@@ -3956,6 +4074,7 @@ function creerPanelPrincipalAdmin(guild) {
 
     const ligneAcces = new ActionRowBuilder().addComponents(
         new ButtonBuilder().setCustomId('admin_verification').setLabel('Vérification').setEmoji('✅').setStyle(ButtonStyle.Success),
+        new ButtonBuilder().setCustomId('admin_tempvoices').setLabel('Vocaux éphémères').setEmoji('🔊').setStyle(ButtonStyle.Primary),
         new ButtonBuilder().setCustomId('admin_access').setLabel('Accès Bot').setEmoji('🔐').setStyle(ButtonStyle.Secondary)
     );
 
@@ -4580,6 +4699,217 @@ client.on(
 
             }
 
+
+            // ==================================================
+            // MODULE VOCAUX ÉPHÉMÈRES
+            // ==================================================
+
+            if (interaction.isButton() && interaction.customId === 'admin_tempvoices') {
+                const config = chargerConfigServeur(interaction.guild.id);
+                if (!utilisateurPeutAdministrerBot(interaction, config)) {
+                    await interaction.reply({ content: '❌ Tu n’as pas l’autorisation d’utiliser ce module.', flags: MessageFlags.Ephemeral });
+                    programmerSuppressionEphemere(interaction, 15000);
+                    return;
+                }
+                await interaction.update({ embeds: [creerEmbedConfigVocauxTemporaires(interaction.guild, config)], components: creerComposantsVocauxTemporaires(config) });
+                return;
+            }
+
+            if (interaction.isButton() && interaction.customId === 'tempvoice_toggle') {
+                const config = chargerConfigServeur(interaction.guild.id);
+                if (!utilisateurPeutAdministrerBot(interaction, config)) return;
+                const tv = obtenirConfigVocauxTemporaires(config);
+                tv.enabled = !tv.enabled;
+                sauvegarderConfigServeur(interaction.guild.id, config);
+                await interaction.update({ embeds: [creerEmbedConfigVocauxTemporaires(interaction.guild, config)], components: creerComposantsVocauxTemporaires(config) });
+                return;
+            }
+
+            if (interaction.isButton() && interaction.customId === 'tempvoice_add') {
+                const config = chargerConfigServeur(interaction.guild.id);
+                if (!utilisateurPeutAdministrerBot(interaction, config)) return;
+                const modal = new ModalBuilder().setCustomId('modal_tempvoice_add').setTitle('Ajouter un salon créateur');
+                modal.addComponents(
+                    new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('tempvoice_trigger_name').setLabel('Nom du salon créateur').setStyle(TextInputStyle.Short).setRequired(true).setMaxLength(100).setValue('➕ Créer un vocal')),
+                    new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('tempvoice_format').setLabel('Nom des salons éphémères').setStyle(TextInputStyle.Short).setRequired(true).setMaxLength(100).setValue('🎙️ Vocal de {DISPLAYNAME}')),
+                    new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('tempvoice_limit').setLabel('Limite de places (0 = illimité)').setStyle(TextInputStyle.Short).setRequired(true).setMaxLength(2).setValue('0'))
+                );
+                await interaction.showModal(modal);
+                return;
+            }
+
+            if (interaction.isModalSubmit() && interaction.customId === 'modal_tempvoice_add') {
+                const config = chargerConfigServeur(interaction.guild.id);
+                if (!utilisateurPeutAdministrerBot(interaction, config)) return;
+                const triggerName = interaction.fields.getTextInputValue('tempvoice_trigger_name').trim();
+                const voiceNameFormat = interaction.fields.getTextInputValue('tempvoice_format').trim();
+                const userLimit = Number.parseInt(interaction.fields.getTextInputValue('tempvoice_limit').trim(), 10);
+                if (!Number.isInteger(userLimit) || userLimit < 0 || userLimit > 99) {
+                    await interaction.reply({ content: '❌ La limite doit être comprise entre 0 et 99.', flags: MessageFlags.Ephemeral });
+                    programmerSuppressionEphemere(interaction, 15000);
+                    return;
+                }
+                temporaryVoiceSetupPending.set(cleUtilisateurServeur(interaction.guild.id, interaction.user.id), { triggerName, voiceNameFormat, userLimit, expiresAt: Date.now() + 120000 });
+                const menu = new ChannelSelectMenuBuilder().setCustomId('select_tempvoice_category_add').setPlaceholder('Choisir la catégorie des vocaux').addChannelTypes(ChannelType.GuildCategory);
+                await interaction.reply({ content: '📁 Choisis la catégorie où seront placés le salon créateur et les vocaux éphémères.', components: [new ActionRowBuilder().addComponents(menu)], flags: MessageFlags.Ephemeral });
+                programmerSuppressionEphemere(interaction, 30000);
+                return;
+            }
+
+            if (interaction.isChannelSelectMenu() && interaction.customId === 'select_tempvoice_category_add') {
+                const config = chargerConfigServeur(interaction.guild.id);
+                if (!utilisateurPeutAdministrerBot(interaction, config)) return;
+                const key = cleUtilisateurServeur(interaction.guild.id, interaction.user.id);
+                const pending = temporaryVoiceSetupPending.get(key);
+                if (!pending || Date.now() > pending.expiresAt) {
+                    temporaryVoiceSetupPending.delete(key);
+                    await interaction.update({ content: '❌ Configuration expirée. Recommence avec « Ajouter un créateur ».', components: [] });
+                    return;
+                }
+                const categoryId = interaction.values[0];
+                const category = interaction.guild.channels.cache.get(categoryId);
+                if (!category || category.type !== ChannelType.GuildCategory) {
+                    await interaction.update({ content: '❌ Catégorie introuvable.', components: [] });
+                    return;
+                }
+                const triggerChannel = await interaction.guild.channels.create({ name: pending.triggerName, type: ChannelType.GuildVoice, parent: categoryId, reason: `ORYUM SYSTEMS - salon créateur configuré par ${interaction.user.tag}` });
+                const tv = obtenirConfigVocauxTemporaires(config);
+                tv.creators[triggerChannel.id] = { triggerChannelId: triggerChannel.id, triggerName: pending.triggerName, categoryId, voiceNameFormat: pending.voiceNameFormat, userLimit: pending.userLimit };
+                temporaryVoiceSetupPending.delete(key);
+                sauvegarderConfigServeur(interaction.guild.id, config);
+                await interaction.update({ content: `✅ Salon créateur créé : ${triggerChannel}\nFormat des vocaux : \`${pending.voiceNameFormat}\``, components: [] });
+                return;
+            }
+
+            if (interaction.isButton() && interaction.customId === 'tempvoice_edit') {
+                const config = chargerConfigServeur(interaction.guild.id);
+                if (!utilisateurPeutAdministrerBot(interaction, config)) return;
+                const row = creerMenuProfilsVocaux(config, 'select_tempvoice_edit', 'Choisir le salon créateur à modifier');
+                if (!row) {
+                    await interaction.reply({ content: '❌ Aucun salon créateur configuré.', flags: MessageFlags.Ephemeral });
+                    programmerSuppressionEphemere(interaction, 15000);
+                    return;
+                }
+                await interaction.reply({ content: '✏️ Choisis le salon créateur à modifier.', components: [row], flags: MessageFlags.Ephemeral });
+                programmerSuppressionEphemere(interaction, 30000);
+                return;
+            }
+
+            if (interaction.isStringSelectMenu() && interaction.customId === 'select_tempvoice_edit') {
+                const config = chargerConfigServeur(interaction.guild.id);
+                if (!utilisateurPeutAdministrerBot(interaction, config)) return;
+                const tv = obtenirConfigVocauxTemporaires(config);
+                const profileId = interaction.values[0];
+                const p = tv.creators[profileId];
+                if (!p) return;
+                temporaryVoiceEditPending.set(cleUtilisateurServeur(interaction.guild.id, interaction.user.id), { profileId, expiresAt: Date.now() + 120000 });
+                const modal = new ModalBuilder().setCustomId('modal_tempvoice_edit').setTitle('Modifier le salon créateur');
+                modal.addComponents(
+                    new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('tempvoice_edit_trigger_name').setLabel('Nom du salon créateur').setStyle(TextInputStyle.Short).setRequired(true).setMaxLength(100).setValue(String(p.triggerName || '➕ Créer un vocal').slice(0, 100))),
+                    new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('tempvoice_edit_format').setLabel('Nom des salons éphémères').setStyle(TextInputStyle.Short).setRequired(true).setMaxLength(100).setValue(String(p.voiceNameFormat || '🎙️ Vocal de {DISPLAYNAME}').slice(0, 100))),
+                    new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('tempvoice_edit_limit').setLabel('Limite de places (0 = illimité)').setStyle(TextInputStyle.Short).setRequired(true).setMaxLength(2).setValue(String(Number(p.userLimit) || 0)))
+                );
+                await interaction.showModal(modal);
+                return;
+            }
+
+            if (interaction.isModalSubmit() && interaction.customId === 'modal_tempvoice_edit') {
+                const config = chargerConfigServeur(interaction.guild.id);
+                if (!utilisateurPeutAdministrerBot(interaction, config)) return;
+                const key = cleUtilisateurServeur(interaction.guild.id, interaction.user.id);
+                const pending = temporaryVoiceEditPending.get(key);
+                if (!pending || Date.now() > pending.expiresAt) {
+                    temporaryVoiceEditPending.delete(key);
+                    await interaction.reply({ content: '❌ Modification expirée. Recommence.', flags: MessageFlags.Ephemeral });
+                    programmerSuppressionEphemere(interaction, 15000);
+                    return;
+                }
+                const tv = obtenirConfigVocauxTemporaires(config);
+                const p = tv.creators[pending.profileId];
+                if (!p) return;
+                const triggerName = interaction.fields.getTextInputValue('tempvoice_edit_trigger_name').trim();
+                const voiceNameFormat = interaction.fields.getTextInputValue('tempvoice_edit_format').trim();
+                const userLimit = Number.parseInt(interaction.fields.getTextInputValue('tempvoice_edit_limit').trim(), 10);
+                if (!Number.isInteger(userLimit) || userLimit < 0 || userLimit > 99) {
+                    await interaction.reply({ content: '❌ La limite doit être comprise entre 0 et 99.', flags: MessageFlags.Ephemeral });
+                    programmerSuppressionEphemere(interaction, 15000);
+                    return;
+                }
+                p.triggerName = triggerName;
+                p.voiceNameFormat = voiceNameFormat;
+                p.userLimit = userLimit;
+                const channel = interaction.guild.channels.cache.get(p.triggerChannelId);
+                if (channel) await channel.setName(triggerName).catch(() => {});
+                temporaryVoiceEditPending.delete(key);
+                sauvegarderConfigServeur(interaction.guild.id, config);
+                await interaction.reply({ content: '✅ Salon créateur mis à jour.', flags: MessageFlags.Ephemeral });
+                programmerSuppressionEphemere(interaction, 15000);
+                return;
+            }
+
+            if (interaction.isButton() && interaction.customId === 'tempvoice_delete') {
+                const config = chargerConfigServeur(interaction.guild.id);
+                if (!utilisateurPeutAdministrerBot(interaction, config)) return;
+                const row = creerMenuProfilsVocaux(config, 'select_tempvoice_delete', 'Choisir le salon créateur à supprimer');
+                if (!row) {
+                    await interaction.reply({ content: '❌ Aucun salon créateur configuré.', flags: MessageFlags.Ephemeral });
+                    programmerSuppressionEphemere(interaction, 15000);
+                    return;
+                }
+                await interaction.reply({ content: '🗑️ Choisis le salon créateur à supprimer.', components: [row], flags: MessageFlags.Ephemeral });
+                programmerSuppressionEphemere(interaction, 30000);
+                return;
+            }
+
+            if (interaction.isStringSelectMenu() && interaction.customId === 'select_tempvoice_delete') {
+                const config = chargerConfigServeur(interaction.guild.id);
+                if (!utilisateurPeutAdministrerBot(interaction, config)) return;
+                const tv = obtenirConfigVocauxTemporaires(config);
+                const profileId = interaction.values[0];
+                const p = tv.creators[profileId];
+                if (!p) return;
+                const channel = interaction.guild.channels.cache.get(p.triggerChannelId);
+                if (channel) await channel.delete('ORYUM SYSTEMS - suppression du salon créateur').catch(() => {});
+                delete tv.creators[profileId];
+                sauvegarderConfigServeur(interaction.guild.id, config);
+                await interaction.update({ content: '✅ Salon créateur supprimé.', components: [] });
+                return;
+            }
+
+            if (interaction.isChatInputCommand() && interaction.commandName === 'vocal') {
+                const config = chargerConfigServeur(interaction.guild.id);
+                const tv = obtenirConfigVocauxTemporaires(config);
+                const voiceChannel = interaction.member?.voice?.channel;
+                if (!voiceChannel) {
+                    await interaction.reply({ content: '❌ Tu dois être dans ton vocal éphémère.', flags: MessageFlags.Ephemeral });
+                    programmerSuppressionEphemere(interaction, 15000);
+                    return;
+                }
+                const active = tv.activeChannels[voiceChannel.id];
+                if (!active || active.ownerId !== interaction.user.id) {
+                    await interaction.reply({ content: '❌ Tu n’es pas le propriétaire de ce vocal éphémère.', flags: MessageFlags.Ephemeral });
+                    programmerSuppressionEphemere(interaction, 15000);
+                    return;
+                }
+                const sub = interaction.options.getSubcommand();
+                if (sub === 'renommer') {
+                    const nom = interaction.options.getString('nom', true).trim().slice(0, 100);
+                    await voiceChannel.setName(nom);
+                    await interaction.reply({ content: `✅ Ton vocal s’appelle maintenant **${nom}**.`, flags: MessageFlags.Ephemeral });
+                } else if (sub === 'limite') {
+                    const places = interaction.options.getInteger('places', true);
+                    await voiceChannel.setUserLimit(places);
+                    await interaction.reply({ content: `✅ Limite réglée sur **${places || 'illimité'}**.`, flags: MessageFlags.Ephemeral });
+                } else if (sub === 'verrouiller') {
+                    await voiceChannel.permissionOverwrites.edit(interaction.guild.roles.everyone, { Connect: false });
+                    await interaction.reply({ content: '🔒 Ton vocal est maintenant verrouillé.', flags: MessageFlags.Ephemeral });
+                } else if (sub === 'deverrouiller') {
+                    await voiceChannel.permissionOverwrites.edit(interaction.guild.roles.everyone, { Connect: null });
+                    await interaction.reply({ content: '🔓 Ton vocal est maintenant déverrouillé.', flags: MessageFlags.Ephemeral });
+                }
+                programmerSuppressionEphemere(interaction, 15000);
+                return;
+            }
 
             // ==================================================
             // MODULE VÉRIFICATION / IDENTITÉ RP
@@ -14467,6 +14797,70 @@ process.on(
     }
 
 );
+
+
+// ======================================================
+// VOCAUX ÉPHÉMÈRES - CRÉATION / SUPPRESSION
+// ======================================================
+
+client.on(Events.VoiceStateUpdate, async (oldState, newState) => {
+    try {
+        const guild = newState.guild || oldState.guild;
+        if (!guild) return;
+        const config = chargerConfigServeur(guild.id);
+        const tv = obtenirConfigVocauxTemporaires(config);
+
+        if (oldState.channelId && oldState.channelId !== newState.channelId) {
+            const active = tv.activeChannels[oldState.channelId];
+            if (active) {
+                const oldChannel = guild.channels.cache.get(oldState.channelId);
+                if (!oldChannel || oldChannel.members.size === 0) {
+                    if (oldChannel) await oldChannel.delete('ORYUM SYSTEMS - vocal éphémère vide').catch(() => {});
+                    delete tv.activeChannels[oldState.channelId];
+                    sauvegarderConfigServeur(guild.id, config);
+                }
+            }
+        }
+
+        if (!tv.enabled || !newState.channelId || oldState.channelId === newState.channelId) return;
+        const profilEntree = trouverProfilCreateurParSalon(config, newState.channelId);
+        if (!profilEntree) return;
+
+        const [profileId, profil] = profilEntree;
+        const member = newState.member;
+        if (!member || member.user.bot) return;
+        const categorie = guild.channels.cache.get(profil.categoryId);
+        const parentId = categorie && categorie.type === ChannelType.GuildCategory ? categorie.id : newState.channel?.parentId || null;
+        const numero = Object.values(tv.activeChannels).filter(x => x && x.profileId === profileId).length + 1;
+        const nom = formatNomVocalTemporaire(profil.voiceNameFormat, member, numero);
+
+        const tempChannel = await guild.channels.create({
+            name: nom || `Vocal de ${member.displayName}`,
+            type: ChannelType.GuildVoice,
+            parent: parentId,
+            userLimit: Math.max(0, Math.min(99, Number(profil.userLimit) || 0)),
+            permissionOverwrites: [{
+                id: member.id,
+                allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.Connect, PermissionFlagsBits.Speak, PermissionFlagsBits.ManageChannels, PermissionFlagsBits.MoveMembers]
+            }],
+            reason: `ORYUM SYSTEMS - vocal éphémère de ${member.user.tag}`
+        });
+
+        tv.activeChannels[tempChannel.id] = { ownerId: member.id, profileId, createdAt: Date.now() };
+        sauvegarderConfigServeur(guild.id, config);
+
+        try {
+            await member.voice.setChannel(tempChannel);
+        } catch (moveError) {
+            delete tv.activeChannels[tempChannel.id];
+            sauvegarderConfigServeur(guild.id, config);
+            await tempChannel.delete('ORYUM SYSTEMS - déplacement impossible').catch(() => {});
+            console.error('❌ Impossible de déplacer le membre dans son vocal éphémère :', moveError);
+        }
+    } catch (error) {
+        console.error('❌ Erreur VoiceStateUpdate / vocaux éphémères :', error);
+    }
+});
 
 
 // ======================================================
