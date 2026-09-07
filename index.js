@@ -366,7 +366,13 @@ function configBaseServeur() {
                 '{NOM} | {Prenom}',
 
             keepDiscordUsername:
-                false
+                false,
+
+            panelThumbnailUrl:
+                '',
+
+            panelImageUrl:
+                ''
 
         },
 
@@ -1991,6 +1997,10 @@ const attenteImageApparence =
 
 
 const attenteImageTicketPanel =
+    new Map();
+
+
+const attenteImageVerification =
     new Map();
 
 
@@ -3630,6 +3640,81 @@ client.on(
 
 
         // ==================================================
+        // IMAGES DU PANNEAU DE VÉRIFICATION
+        // ==================================================
+
+        const attenteVerification =
+            attenteImageVerification.get(cle);
+
+        if (
+            attenteVerification &&
+            attenteVerification.channelId === message.channel.id
+        ) {
+
+            if (Date.now() > attenteVerification.expiresAt) {
+                attenteImageVerification.delete(cle);
+                await message.reply(
+                    '❌ Temps écoulé. Recommence depuis `/bot-panel`.'
+                );
+                return;
+            }
+
+            const attachment =
+                message.attachments.first();
+
+            if (!attachment) {
+                await message.reply('❌ Tu dois envoyer une image.');
+                return;
+            }
+
+            const contentType =
+                attachment.contentType || '';
+
+            const extensionImage =
+                /\.(png|jpe?g|gif|webp)$/i.test(
+                    attachment.name || attachment.url
+                );
+
+            if (
+                !contentType.startsWith('image/') &&
+                !extensionImage
+            ) {
+                await message.reply(
+                    '❌ Le fichier envoyé n’est pas une image.'
+                );
+                return;
+            }
+
+            const config =
+                chargerConfigServeur(message.guild.id);
+
+            if (attenteVerification.type === 'logo') {
+                config.verification.panelThumbnailUrl =
+                    attachment.url;
+            }
+            else {
+                config.verification.panelImageUrl =
+                    attachment.url;
+            }
+
+            sauvegarderConfigServeur(
+                message.guild.id,
+                config
+            );
+
+            attenteImageVerification.delete(cle);
+
+            await message.reply(
+                attenteVerification.type === 'logo'
+                    ? '✅ Logo du panneau de vérification enregistré.'
+                    : '✅ Photo du panneau de vérification enregistrée.'
+            );
+
+            return;
+        }
+
+
+        // ==================================================
         // IMAGE APPARENCE
         // ==================================================
 
@@ -4571,6 +4656,16 @@ client.on(
                             name: '🧩 Format du pseudo',
                             value: `\`${v.nicknameFormat || '{NOM} | {Prenom}'}\``,
                             inline: false
+                        },
+                        {
+                            name: '🖼️ Logo du panneau',
+                            value: v.panelThumbnailUrl ? '✅ Configuré' : '❌ Aucun',
+                            inline: true
+                        },
+                        {
+                            name: '🌄 Photo du panneau',
+                            value: v.panelImageUrl ? '✅ Configurée' : '❌ Aucune',
+                            inline: true
                         }
                     );
 
@@ -4633,15 +4728,115 @@ client.on(
                         .setStyle(v.keepDiscordUsername === true ? ButtonStyle.Danger : ButtonStyle.Success)
                 );
 
+                const ligne4 = new ActionRowBuilder().addComponents(
+                    new ButtonBuilder()
+                        .setCustomId('verification_logo')
+                        .setLabel('Logo')
+                        .setEmoji('🖼️')
+                        .setStyle(ButtonStyle.Secondary),
+                    new ButtonBuilder()
+                        .setCustomId('verification_photo')
+                        .setLabel('Photo')
+                        .setEmoji('🌄')
+                        .setStyle(ButtonStyle.Secondary),
+                    new ButtonBuilder()
+                        .setCustomId('verification_remove_logo')
+                        .setLabel('Retirer logo')
+                        .setEmoji('🗑️')
+                        .setStyle(ButtonStyle.Danger),
+                    new ButtonBuilder()
+                        .setCustomId('verification_remove_photo')
+                        .setLabel('Retirer photo')
+                        .setEmoji('🗑️')
+                        .setStyle(ButtonStyle.Danger)
+                );
+
                 await interaction.update({
                     embeds: [embed],
                     components: [
                         ligne1,
                         ligne2,
                         ligne3,
+                        ligne4,
                         creerLigneRetourAdmin()
                     ]
                 });
+                return;
+            }
+
+
+            if (
+                interaction.isButton() &&
+                interaction.customId === 'verification_logo'
+            ) {
+                const cle = `${interaction.guild.id}:${interaction.user.id}`;
+
+                attenteImageVerification.set(cle, {
+                    type: 'logo',
+                    channelId: interaction.channel.id,
+                    expiresAt: Date.now() + 120000
+                });
+
+                await interaction.reply({
+                    content: '🖼️ Envoie maintenant le **logo** du panneau de vérification dans ce salon.\nTu as **2 minutes**.',
+                    flags: MessageFlags.Ephemeral
+                });
+                programmerSuppressionEphemere(interaction, 30000);
+                return;
+            }
+
+
+            if (
+                interaction.isButton() &&
+                interaction.customId === 'verification_photo'
+            ) {
+                const cle = `${interaction.guild.id}:${interaction.user.id}`;
+
+                attenteImageVerification.set(cle, {
+                    type: 'photo',
+                    channelId: interaction.channel.id,
+                    expiresAt: Date.now() + 120000
+                });
+
+                await interaction.reply({
+                    content: '🌄 Envoie maintenant la **photo / bannière** du panneau de vérification dans ce salon.\nTu as **2 minutes**.',
+                    flags: MessageFlags.Ephemeral
+                });
+                programmerSuppressionEphemere(interaction, 30000);
+                return;
+            }
+
+
+            if (
+                interaction.isButton() &&
+                interaction.customId === 'verification_remove_logo'
+            ) {
+                const config = chargerConfigServeur(interaction.guild.id);
+                config.verification.panelThumbnailUrl = '';
+                sauvegarderConfigServeur(interaction.guild.id, config);
+
+                await interaction.reply({
+                    content: '✅ Logo du panneau de vérification retiré.',
+                    flags: MessageFlags.Ephemeral
+                });
+                programmerSuppressionEphemere(interaction, 15000);
+                return;
+            }
+
+
+            if (
+                interaction.isButton() &&
+                interaction.customId === 'verification_remove_photo'
+            ) {
+                const config = chargerConfigServeur(interaction.guild.id);
+                config.verification.panelImageUrl = '';
+                sauvegarderConfigServeur(interaction.guild.id, config);
+
+                await interaction.reply({
+                    content: '✅ Photo du panneau de vérification retirée.',
+                    flags: MessageFlags.Ephemeral
+                });
+                programmerSuppressionEphemere(interaction, 15000);
                 return;
             }
 
@@ -5044,6 +5239,14 @@ client.on(
 
                 if (v.panelFooter) {
                     embed.setFooter({ text: v.panelFooter });
+                }
+
+                if (v.panelThumbnailUrl) {
+                    embed.setThumbnail(v.panelThumbnailUrl);
+                }
+
+                if (v.panelImageUrl) {
+                    embed.setImage(v.panelImageUrl);
                 }
 
                 const row = new ActionRowBuilder().addComponents(
