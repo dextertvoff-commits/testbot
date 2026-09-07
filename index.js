@@ -3968,7 +3968,38 @@ function obtenirConfigVocauxTemporaires(config) {
     }
     if (!config.temporaryVoices.creators || typeof config.temporaryVoices.creators !== 'object') config.temporaryVoices.creators = {};
     if (!config.temporaryVoices.activeChannels || typeof config.temporaryVoices.activeChannels !== 'object') config.temporaryVoices.activeChannels = {};
+    for (const profil of Object.values(config.temporaryVoices.creators)) {
+        if (profil && !Array.isArray(profil.allowedRoleIds)) profil.allowedRoleIds = [];
+    }
     return config.temporaryVoices;
+}
+
+function rolesAutorisesProfilVocal(profil) {
+    return Array.isArray(profil?.allowedRoleIds)
+        ? [...new Set(profil.allowedRoleIds.filter(Boolean))].slice(0, 10)
+        : [];
+}
+
+function membreAutoriseProfilVocal(member, profil) {
+    const roles = rolesAutorisesProfilVocal(profil);
+    if (!roles.length) return true;
+    if (member.permissions.has(PermissionFlagsBits.Administrator)) return true;
+    return roles.some(roleId => member.roles.cache.has(roleId));
+}
+
+async function appliquerPermissionsSalonCreateur(guild, profil) {
+    const channel = guild.channels.cache.get(profil?.triggerChannelId);
+    if (!channel || channel.type !== ChannelType.GuildVoice) return;
+    const roles = rolesAutorisesProfilVocal(profil);
+    if (!roles.length) {
+        await channel.permissionOverwrites.delete(guild.roles.everyone.id, 'ORYUM SYSTEMS - accès public vocal créateur').catch(() => {});
+        return;
+    }
+    await channel.permissionOverwrites.edit(guild.roles.everyone.id, { Connect: false }, { reason: 'ORYUM SYSTEMS - restriction vocal créateur' }).catch(() => {});
+    for (const roleId of roles) {
+        const role = guild.roles.cache.get(roleId);
+        if (role) await channel.permissionOverwrites.edit(roleId, { ViewChannel: true, Connect: true, Speak: true }, { reason: 'ORYUM SYSTEMS - rôle autorisé vocal créateur' }).catch(() => {});
+    }
 }
 
 function formatNomVocalTemporaire(format, member, numero = 1) {
@@ -3999,7 +4030,9 @@ function creerEmbedConfigVocauxTemporaires(guild, config) {
             const salon = p.triggerChannelId ? `<#${p.triggerChannelId}>` : 'Salon manquant';
             const cat = p.categoryId ? `<#${p.categoryId}>` : 'Sans catégorie';
             const limite = Number(p.userLimit) || 0;
-            return `**${i + 1}.** ${salon} → \`${p.voiceNameFormat || '🎙️ Vocal de {DISPLAYNAME}'}\` • ${limite || '∞'} places • ${cat}`;
+            const roles = rolesAutorisesProfilVocal(p);
+            const acces = roles.length ? roles.map(id => `<@&${id}>`).join(', ') : '🌐 Public';
+            return `**${i + 1}.** ${salon} → \`${p.voiceNameFormat || '🎙️ Vocal de {DISPLAYNAME}'}\` • ${limite || '∞'} places • ${cat}\n└ 👥 ${acces}`;
         }).join('\n')
         : 'Aucun salon créateur configuré.';
 
@@ -4021,6 +4054,7 @@ function creerComposantsVocauxTemporaires(config) {
         new ButtonBuilder().setCustomId('tempvoice_toggle').setLabel(tv.enabled ? 'Désactiver' : 'Activer').setEmoji(tv.enabled ? '⛔' : '✅').setStyle(tv.enabled ? ButtonStyle.Danger : ButtonStyle.Success),
         new ButtonBuilder().setCustomId('tempvoice_add').setLabel('Ajouter un créateur').setEmoji('➕').setStyle(ButtonStyle.Primary),
         new ButtonBuilder().setCustomId('tempvoice_edit').setLabel('Modifier').setEmoji('✏️').setStyle(ButtonStyle.Secondary),
+        new ButtonBuilder().setCustomId('tempvoice_roles').setLabel('Rôles autorisés').setEmoji('👥').setStyle(ButtonStyle.Secondary),
         new ButtonBuilder().setCustomId('tempvoice_delete').setLabel('Supprimer').setEmoji('🗑️').setStyle(ButtonStyle.Danger)
     );
     return [ligne1, creerLigneRetourAdmin()];
@@ -4774,7 +4808,7 @@ client.on(
                 }
                 const triggerChannel = await interaction.guild.channels.create({ name: pending.triggerName, type: ChannelType.GuildVoice, parent: categoryId, reason: `ORYUM SYSTEMS - salon créateur configuré par ${interaction.user.tag}` });
                 const tv = obtenirConfigVocauxTemporaires(config);
-                tv.creators[triggerChannel.id] = { triggerChannelId: triggerChannel.id, triggerName: pending.triggerName, categoryId, voiceNameFormat: pending.voiceNameFormat, userLimit: pending.userLimit };
+                tv.creators[triggerChannel.id] = { triggerChannelId: triggerChannel.id, triggerName: pending.triggerName, categoryId, voiceNameFormat: pending.voiceNameFormat, userLimit: pending.userLimit, allowedRoleIds: [] };
                 temporaryVoiceSetupPending.delete(key);
                 sauvegarderConfigServeur(interaction.guild.id, config);
                 await interaction.update({ content: `✅ Salon créateur créé : ${triggerChannel}\nFormat des vocaux : \`${pending.voiceNameFormat}\``, components: [] });
@@ -4844,6 +4878,85 @@ client.on(
                 sauvegarderConfigServeur(interaction.guild.id, config);
                 await interaction.reply({ content: '✅ Salon créateur mis à jour.', flags: MessageFlags.Ephemeral });
                 programmerSuppressionEphemere(interaction, 15000);
+                return;
+            }
+
+            if (interaction.isButton() && interaction.customId === 'tempvoice_roles') {
+                const config = chargerConfigServeur(interaction.guild.id);
+                if (!utilisateurPeutAdministrerBot(interaction, config)) return;
+                const row = creerMenuProfilsVocaux(config, 'select_tempvoice_roles_profile', 'Choisir le salon créateur');
+                if (!row) {
+                    await interaction.reply({ content: '❌ Aucun salon créateur configuré.', flags: MessageFlags.Ephemeral });
+                    programmerSuppressionEphemere(interaction, 15000);
+                    return;
+                }
+                await interaction.reply({ content: '👥 Choisis le salon créateur dont tu veux gérer les rôles autorisés.', components: [row], flags: MessageFlags.Ephemeral });
+                programmerSuppressionEphemere(interaction, 30000);
+                return;
+            }
+
+            if (interaction.isStringSelectMenu() && interaction.customId === 'select_tempvoice_roles_profile') {
+                const config = chargerConfigServeur(interaction.guild.id);
+                if (!utilisateurPeutAdministrerBot(interaction, config)) return;
+                const tv = obtenirConfigVocauxTemporaires(config);
+                const profileId = interaction.values[0];
+                const profil = tv.creators[profileId];
+                if (!profil) return;
+                temporaryVoiceEditPending.set(cleUtilisateurServeur(interaction.guild.id, interaction.user.id), { profileId, mode: 'roles', expiresAt: Date.now() + 120000 });
+                const roles = rolesAutorisesProfilVocal(profil);
+                const menu = new RoleSelectMenuBuilder()
+                    .setCustomId('select_tempvoice_allowed_roles')
+                    .setPlaceholder('Choisir jusqu’à 10 rôles autorisés')
+                    .setMinValues(0)
+                    .setMaxValues(10);
+                if (roles.length) menu.setDefaultRoles(roles);
+                const clear = new ButtonBuilder().setCustomId('tempvoice_roles_clear').setLabel('Rendre public').setEmoji('🌐').setStyle(ButtonStyle.Secondary);
+                await interaction.update({
+                    content: `👥 Rôles autorisés pour <#${profil.triggerChannelId}>.\n${roles.length ? roles.map(id => `<@&${id}>`).join(', ') : '**Actuellement : public**'}\n\nSi aucun rôle n’est sélectionné, le salon est accessible à tout le monde.`,
+                    components: [new ActionRowBuilder().addComponents(menu), new ActionRowBuilder().addComponents(clear)]
+                });
+                return;
+            }
+
+            if (interaction.isRoleSelectMenu() && interaction.customId === 'select_tempvoice_allowed_roles') {
+                const config = chargerConfigServeur(interaction.guild.id);
+                if (!utilisateurPeutAdministrerBot(interaction, config)) return;
+                const key = cleUtilisateurServeur(interaction.guild.id, interaction.user.id);
+                const pending = temporaryVoiceEditPending.get(key);
+                if (!pending || pending.mode !== 'roles' || Date.now() > pending.expiresAt) {
+                    temporaryVoiceEditPending.delete(key);
+                    await interaction.update({ content: '❌ Configuration expirée. Recommence depuis le panneau.', components: [] });
+                    return;
+                }
+                const tv = obtenirConfigVocauxTemporaires(config);
+                const profil = tv.creators[pending.profileId];
+                if (!profil) return;
+                profil.allowedRoleIds = [...new Set(interaction.values)].slice(0, 10);
+                await appliquerPermissionsSalonCreateur(interaction.guild, profil);
+                temporaryVoiceEditPending.delete(key);
+                sauvegarderConfigServeur(interaction.guild.id, config);
+                await interaction.update({ content: profil.allowedRoleIds.length ? `✅ Accès configuré : ${profil.allowedRoleIds.map(id => `<@&${id}>`).join(', ')}` : '✅ Ce salon créateur est maintenant public.', components: [] });
+                return;
+            }
+
+            if (interaction.isButton() && interaction.customId === 'tempvoice_roles_clear') {
+                const config = chargerConfigServeur(interaction.guild.id);
+                if (!utilisateurPeutAdministrerBot(interaction, config)) return;
+                const key = cleUtilisateurServeur(interaction.guild.id, interaction.user.id);
+                const pending = temporaryVoiceEditPending.get(key);
+                if (!pending || pending.mode !== 'roles' || Date.now() > pending.expiresAt) {
+                    temporaryVoiceEditPending.delete(key);
+                    await interaction.update({ content: '❌ Configuration expirée. Recommence depuis le panneau.', components: [] });
+                    return;
+                }
+                const tv = obtenirConfigVocauxTemporaires(config);
+                const profil = tv.creators[pending.profileId];
+                if (!profil) return;
+                profil.allowedRoleIds = [];
+                await appliquerPermissionsSalonCreateur(interaction.guild, profil);
+                temporaryVoiceEditPending.delete(key);
+                sauvegarderConfigServeur(interaction.guild.id, config);
+                await interaction.update({ content: '🌐 Salon créateur rendu public. Tout le monde peut créer et rejoindre ses vocaux éphémères.', components: [] });
                 return;
             }
 
@@ -14829,20 +14942,42 @@ client.on(Events.VoiceStateUpdate, async (oldState, newState) => {
         const [profileId, profil] = profilEntree;
         const member = newState.member;
         if (!member || member.user.bot) return;
+        if (!membreAutoriseProfilVocal(member, profil)) {
+            await member.voice.disconnect('ORYUM SYSTEMS - rôle non autorisé pour ce salon créateur').catch(() => {});
+            return;
+        }
         const categorie = guild.channels.cache.get(profil.categoryId);
         const parentId = categorie && categorie.type === ChannelType.GuildCategory ? categorie.id : newState.channel?.parentId || null;
         const numero = Object.values(tv.activeChannels).filter(x => x && x.profileId === profileId).length + 1;
         const nom = formatNomVocalTemporaire(profil.voiceNameFormat, member, numero);
+
+        const rolesAutorises = rolesAutorisesProfilVocal(profil);
+        const permissionOverwrites = [];
+        if (rolesAutorises.length) {
+            permissionOverwrites.push({
+                id: guild.roles.everyone.id,
+                deny: [PermissionFlagsBits.Connect]
+            });
+            for (const roleId of rolesAutorises) {
+                if (guild.roles.cache.has(roleId)) {
+                    permissionOverwrites.push({
+                        id: roleId,
+                        allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.Connect, PermissionFlagsBits.Speak]
+                    });
+                }
+            }
+        }
+        permissionOverwrites.push({
+            id: member.id,
+            allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.Connect, PermissionFlagsBits.Speak, PermissionFlagsBits.ManageChannels, PermissionFlagsBits.MoveMembers]
+        });
 
         const tempChannel = await guild.channels.create({
             name: nom || `Vocal de ${member.displayName}`,
             type: ChannelType.GuildVoice,
             parent: parentId,
             userLimit: Math.max(0, Math.min(99, Number(profil.userLimit) || 0)),
-            permissionOverwrites: [{
-                id: member.id,
-                allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.Connect, PermissionFlagsBits.Speak, PermissionFlagsBits.ManageChannels, PermissionFlagsBits.MoveMembers]
-            }],
+            permissionOverwrites,
             reason: `ORYUM SYSTEMS - vocal éphémère de ${member.user.tag}`
         });
 
