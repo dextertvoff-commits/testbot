@@ -4138,7 +4138,7 @@ function obtenirCommandesPersonnalisees(config) {
 function parserOptionsCommande(texte = '') {
     const types = { text: 3, texte: 3, string: 3, user: 6, utilisateur: 6, membre: 6, role: 8, rôle: 8, channel: 7, salon: 7, integer: 4, nombre: 4, boolean: 5, booleen: 5, bool: 5 };
     const options = [];
-    for (const ligne of String(texte).split(/\\r?\n/).map(v => v.trim()).filter(Boolean)) {
+    for (const ligne of String(texte).split(/\r?\n/).map(v => v.trim()).filter(Boolean)) {
         const [nomBrut, typeBrut = 'text', requisBrut = 'optional', ...descParts] = ligne.split(':');
         const name = String(nomBrut || '').trim().toLowerCase().replace(/[^a-z0-9_-]/g, '-').slice(0, 32);
         const type = types[String(typeBrut).trim().toLowerCase()];
@@ -4434,7 +4434,13 @@ client.on(
                     if (!autorise) { await interaction.reply({content:'❌ Tu n’as pas l’autorisation d’utiliser cette commande.',flags:MessageFlags.Ephemeral}); programmerSuppressionEphemere(interaction,15000); return; }
                     const embed=new EmbedBuilder().setColor(couleurValide(cmd.color,'#F47B20')).setDescription(remplacerVariablesCommande(cmd.body,interaction,cmd)).setTimestamp(); if(cmd.title) embed.setTitle(remplacerVariablesCommande(cmd.title,interaction,cmd)); if(cmd.footer) embed.setFooter({text:cmd.footer});
                     let content; if(cmd.pingUser){ const u=(cmd.options||[]).find(o=>o.type===6); if(u){ const user=interaction.options.getUser(u.name); if(user) content=`<@${user.id}>`; } }
-                    await interaction.reply({content,embeds:[embed],allowedMentions:{users:content?[content.replace(/\\D/g,'')]:[]}}); return;
+                    const pingUser = (cmd.options || []).find(o => o.type === 6) ? interaction.options.getUser((cmd.options || []).find(o => o.type === 6).name) : null;
+                    await interaction.reply({
+                        content,
+                        embeds: [embed],
+                        allowedMentions: { users: pingUser ? [pingUser.id] : [] }
+                    });
+                    return;
                 }
             }
 
