@@ -421,7 +421,15 @@ function configBaseServeur() {
             txAdminUrl: '',
             databaseHealthUrl: '',
             hostHealthUrl: '',
-            lastUpdateAt: 0
+            lastUpdateAt: 0,
+            appearance: {
+                title: '📡 Statuts',
+                description: '',
+                color: '#F47B20',
+                footer: 'Layton Valley • Statut serveur',
+                thumbnailUrl: '',
+                imageUrl: ''
+            }
         },
 
 
@@ -4353,15 +4361,20 @@ async function collecterEtatServeur(guild, config) {
 async function creerEmbedEtatServeur(guild, config) {
     const s = obtenirConfigEtatServeur(config);
     const etat = await collecterEtatServeur(guild, config);
+    const a = s.appearance || {};
+
+    const descriptionPersonnalisee = String(a.description || '').trim();
+    const descriptionConnexion = s.connectText
+        ? `**Connexion :** \`${String(s.connectText).slice(0, 250)}\``
+        : '';
+    const descriptionFinale = [descriptionPersonnalisee, descriptionConnexion]
+        .filter(Boolean)
+        .join('\n\n') || 'État des services de **Layton Valley**.';
 
     const embed = new EmbedBuilder()
-        .setColor(etat.serveur.online ? '#57F287' : '#ED4245')
-        .setTitle('📡 Statuts')
-        .setDescription(
-            s.connectText
-                ? `**Connexion :** \`${String(s.connectText).slice(0, 250)}\``
-                : 'État des services de **Layton Valley**.'
-        )
+        .setColor(couleurValide(a.color, '#F47B20'))
+        .setTitle(String(a.title || '📡 Statuts').slice(0, 256))
+        .setDescription(descriptionFinale.slice(0, 4096))
         .addFields(
             {
                 name: 'Serveur',
@@ -4395,9 +4408,17 @@ async function creerEmbedEtatServeur(guild, config) {
             }
         )
         .setFooter({
-            text: `Actualisation automatique toutes les ${Math.max(30, Number(s.refreshSeconds) || 30)} secondes`
+            text: `${String(a.footer || 'Layton Valley • Statut serveur').slice(0, 180)} • Actualisation toutes les ${Math.max(30, Number(s.refreshSeconds) || 30)} s`
         })
         .setTimestamp();
+
+    if (a.thumbnailUrl) {
+        embed.setThumbnail(a.thumbnailUrl);
+    }
+
+    if (a.imageUrl) {
+        embed.setImage(a.imageUrl);
+    }
 
     return embed;
 }
@@ -4433,11 +4454,44 @@ function creerPanelEtatServeur(guildId) {
     );
 
     const ligne2 = new ActionRowBuilder().addComponents(
+        new ButtonBuilder().setCustomId('serverstatus_appearance').setLabel('Apparence').setEmoji('🎨').setStyle(ButtonStyle.Primary),
         new ButtonBuilder().setCustomId('serverstatus_publish').setLabel('Publier / recréer').setEmoji('📤').setStyle(ButtonStyle.Success),
         new ButtonBuilder().setCustomId('serverstatus_refresh').setLabel('Actualiser').setEmoji('🔄').setStyle(ButtonStyle.Secondary)
     );
 
     return { embeds: [embed], components: [ligne1, ligne2, creerLigneRetourAdmin()] };
+}
+
+function creerPanelApparenceEtatServeur(guildId) {
+    const config = chargerConfigServeur(guildId);
+    const s = obtenirConfigEtatServeur(config);
+    const a = s.appearance || {};
+
+    const embed = new EmbedBuilder()
+        .setColor(couleurValide(a.color, '#F47B20'))
+        .setTitle('🎨 APPARENCE DU PANNEAU DE STATUT')
+        .setDescription('Personnalise l’embed public sans modifier le code.')
+        .addFields(
+            { name: '📝 Titre', value: `\`${String(a.title || '📡 Statuts').slice(0, 200)}\``, inline: false },
+            { name: '🎨 Couleur', value: `\`${a.color || '#F47B20'}\``, inline: true },
+            { name: '📝 Footer', value: a.footer || 'Layton Valley • Statut serveur', inline: true },
+            { name: '🖼️ Logo', value: a.thumbnailUrl ? '✅ Configuré' : '❌ Aucun', inline: true },
+            { name: '🌄 Image', value: a.imageUrl ? '✅ Configurée' : '❌ Aucune', inline: true },
+            { name: '✏️ Description', value: a.description ? String(a.description).slice(0, 900) : 'Aucune description personnalisée.', inline: false }
+        );
+
+    const row1 = new ActionRowBuilder().addComponents(
+        new ButtonBuilder().setCustomId('serverstatus_appearance_style').setLabel('Texte & couleur').setEmoji('✏️').setStyle(ButtonStyle.Primary),
+        new ButtonBuilder().setCustomId('serverstatus_appearance_images').setLabel('Images').setEmoji('🖼️').setStyle(ButtonStyle.Primary),
+        new ButtonBuilder().setCustomId('serverstatus_appearance_preview').setLabel('Prévisualiser').setEmoji('👁️').setStyle(ButtonStyle.Secondary),
+        new ButtonBuilder().setCustomId('serverstatus_appearance_reset').setLabel('Réinitialiser').setEmoji('♻️').setStyle(ButtonStyle.Danger)
+    );
+
+    const row2 = new ActionRowBuilder().addComponents(
+        new ButtonBuilder().setCustomId('serverstatus_appearance_back').setLabel('Retour état serveur').setEmoji('⬅️').setStyle(ButtonStyle.Secondary)
+    );
+
+    return { embeds: [embed], components: [row1, row2] };
 }
 
 async function publierOuMettreAJourEtatServeur(guild, forcerRecreation = false) {
@@ -4749,7 +4803,11 @@ client.on(
                 (interaction.isButton() && interaction.customId.startsWith('serverstatus_')) ||
                 (interaction.isChannelSelectMenu() && interaction.customId === 'serverstatus_channel_select') ||
                 (interaction.isRoleSelectMenu() && interaction.customId === 'serverstatus_roles_select') ||
-                (interaction.isModalSubmit() && interaction.customId === 'serverstatus_config_modal')
+                (interaction.isModalSubmit() && [
+                    'serverstatus_config_modal',
+                    'serverstatus_appearance_style_modal',
+                    'serverstatus_appearance_images_modal'
+                ].includes(interaction.customId))
             ) {
                 const config = chargerConfigServeur(interaction.guild.id);
                 if (!utilisateurPeutAdministrerEtatServeur(interaction, config)) {
@@ -4917,6 +4975,196 @@ client.on(
                     flags: MessageFlags.Ephemeral
                 });
                 programmerSuppressionEphemere(interaction, 15000);
+                return;
+            }
+
+
+            if (interaction.isButton() && interaction.customId === 'serverstatus_appearance') {
+                await interaction.update(creerPanelApparenceEtatServeur(interaction.guild.id));
+                return;
+            }
+
+            if (interaction.isButton() && interaction.customId === 'serverstatus_appearance_back') {
+                await interaction.update(creerPanelEtatServeur(interaction.guild.id));
+                return;
+            }
+
+            if (interaction.isButton() && interaction.customId === 'serverstatus_appearance_style') {
+                const config = chargerConfigServeur(interaction.guild.id);
+                const s = obtenirConfigEtatServeur(config);
+                const a = s.appearance || {};
+
+                const modal = new ModalBuilder()
+                    .setCustomId('serverstatus_appearance_style_modal')
+                    .setTitle('Apparence du statut');
+
+                modal.addComponents(
+                    new ActionRowBuilder().addComponents(
+                        new TextInputBuilder()
+                            .setCustomId('ssa_title')
+                            .setLabel('Titre')
+                            .setStyle(TextInputStyle.Short)
+                            .setRequired(true)
+                            .setMaxLength(256)
+                            .setValue(String(a.title || '📡 Statuts').slice(0, 256))
+                    ),
+                    new ActionRowBuilder().addComponents(
+                        new TextInputBuilder()
+                            .setCustomId('ssa_description')
+                            .setLabel('Description personnalisée')
+                            .setStyle(TextInputStyle.Paragraph)
+                            .setRequired(false)
+                            .setMaxLength(2000)
+                            .setValue(String(a.description || '').slice(0, 2000))
+                            .setPlaceholder('État en temps réel des services Layton Valley.')
+                    ),
+                    new ActionRowBuilder().addComponents(
+                        new TextInputBuilder()
+                            .setCustomId('ssa_color')
+                            .setLabel('Couleur HEX')
+                            .setStyle(TextInputStyle.Short)
+                            .setRequired(true)
+                            .setMaxLength(7)
+                            .setValue(String(a.color || '#F47B20').slice(0, 7))
+                            .setPlaceholder('#F47B20')
+                    ),
+                    new ActionRowBuilder().addComponents(
+                        new TextInputBuilder()
+                            .setCustomId('ssa_footer')
+                            .setLabel('Footer')
+                            .setStyle(TextInputStyle.Short)
+                            .setRequired(false)
+                            .setMaxLength(180)
+                            .setValue(String(a.footer || 'Layton Valley • Statut serveur').slice(0, 180))
+                    )
+                );
+
+                await interaction.showModal(modal);
+                return;
+            }
+
+            if (interaction.isModalSubmit() && interaction.customId === 'serverstatus_appearance_style_modal') {
+                const config = chargerConfigServeur(interaction.guild.id);
+                const s = obtenirConfigEtatServeur(config);
+                if (!s.appearance) s.appearance = {};
+
+                const color = interaction.fields.getTextInputValue('ssa_color').trim();
+                if (!/^#[0-9A-Fa-f]{6}$/.test(color)) {
+                    await interaction.reply({
+                        content: '❌ Couleur invalide. Utilise le format `#F47B20`.',
+                        flags: MessageFlags.Ephemeral
+                    });
+                    programmerSuppressionEphemere(interaction, 15000);
+                    return;
+                }
+
+                s.appearance.title = interaction.fields.getTextInputValue('ssa_title').trim() || '📡 Statuts';
+                s.appearance.description = interaction.fields.getTextInputValue('ssa_description').trim();
+                s.appearance.color = color;
+                s.appearance.footer = interaction.fields.getTextInputValue('ssa_footer').trim() || 'Layton Valley • Statut serveur';
+                sauvegarderConfigServeur(interaction.guild.id, config);
+
+                await interaction.reply({
+                    content: '✅ Apparence du panneau enregistrée.',
+                    flags: MessageFlags.Ephemeral
+                });
+                programmerSuppressionEphemere(interaction, 15000);
+                return;
+            }
+
+            if (interaction.isButton() && interaction.customId === 'serverstatus_appearance_images') {
+                const config = chargerConfigServeur(interaction.guild.id);
+                const s = obtenirConfigEtatServeur(config);
+                const a = s.appearance || {};
+
+                const modal = new ModalBuilder()
+                    .setCustomId('serverstatus_appearance_images_modal')
+                    .setTitle('Images du statut');
+
+                modal.addComponents(
+                    new ActionRowBuilder().addComponents(
+                        new TextInputBuilder()
+                            .setCustomId('ssa_thumbnail')
+                            .setLabel('URL du logo / thumbnail')
+                            .setStyle(TextInputStyle.Short)
+                            .setRequired(false)
+                            .setMaxLength(1000)
+                            .setValue(String(a.thumbnailUrl || '').slice(0, 1000))
+                            .setPlaceholder('https://.../logo.png')
+                    ),
+                    new ActionRowBuilder().addComponents(
+                        new TextInputBuilder()
+                            .setCustomId('ssa_image')
+                            .setLabel('URL de l’image / bannière')
+                            .setStyle(TextInputStyle.Short)
+                            .setRequired(false)
+                            .setMaxLength(1000)
+                            .setValue(String(a.imageUrl || '').slice(0, 1000))
+                            .setPlaceholder('https://.../banniere.png')
+                    )
+                );
+
+                await interaction.showModal(modal);
+                return;
+            }
+
+            if (interaction.isModalSubmit() && interaction.customId === 'serverstatus_appearance_images_modal') {
+                const config = chargerConfigServeur(interaction.guild.id);
+                const s = obtenirConfigEtatServeur(config);
+                if (!s.appearance) s.appearance = {};
+
+                const thumbnailUrl = interaction.fields.getTextInputValue('ssa_thumbnail').trim();
+                const imageUrl = interaction.fields.getTextInputValue('ssa_image').trim();
+                const urlValide = value => !value || /^https?:\/\//i.test(value);
+
+                if (!urlValide(thumbnailUrl) || !urlValide(imageUrl)) {
+                    await interaction.reply({
+                        content: '❌ Les images doivent utiliser une URL commençant par `http://` ou `https://`.',
+                        flags: MessageFlags.Ephemeral
+                    });
+                    programmerSuppressionEphemere(interaction, 15000);
+                    return;
+                }
+
+                s.appearance.thumbnailUrl = thumbnailUrl;
+                s.appearance.imageUrl = imageUrl;
+                sauvegarderConfigServeur(interaction.guild.id, config);
+
+                await interaction.reply({
+                    content: '✅ Images du panneau enregistrées.',
+                    flags: MessageFlags.Ephemeral
+                });
+                programmerSuppressionEphemere(interaction, 15000);
+                return;
+            }
+
+            if (interaction.isButton() && interaction.customId === 'serverstatus_appearance_preview') {
+                await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+                try {
+                    const config = chargerConfigServeur(interaction.guild.id);
+                    const embed = await creerEmbedEtatServeur(interaction.guild, config);
+                    await interaction.editReply({ embeds: [embed] });
+                }
+                catch (error) {
+                    await interaction.editReply(`❌ Prévisualisation impossible : ${error.message}`);
+                    programmerSuppressionEphemere(interaction, 15000);
+                }
+                return;
+            }
+
+            if (interaction.isButton() && interaction.customId === 'serverstatus_appearance_reset') {
+                const config = chargerConfigServeur(interaction.guild.id);
+                const s = obtenirConfigEtatServeur(config);
+                s.appearance = {
+                    title: '📡 Statuts',
+                    description: '',
+                    color: '#F47B20',
+                    footer: 'Layton Valley • Statut serveur',
+                    thumbnailUrl: '',
+                    imageUrl: ''
+                };
+                sauvegarderConfigServeur(interaction.guild.id, config);
+                await interaction.update(creerPanelApparenceEtatServeur(interaction.guild.id));
                 return;
             }
 
