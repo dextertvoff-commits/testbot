@@ -407,6 +407,25 @@ function configBaseServeur() {
 
 
         // ==================================================
+        // ÉTAT DU SERVEUR
+        // ==================================================
+
+        serverStatus: {
+            enabled: false,
+            channelId: '',
+            messageId: '',
+            refreshSeconds: 30,
+            accessRoleIds: [],
+            connectText: '',
+            serverUrl: '',
+            txAdminUrl: '',
+            databaseHealthUrl: '',
+            hostHealthUrl: '',
+            lastUpdateAt: 0
+        },
+
+
+        // ==================================================
         // APPARENCE DU BOT
         // ==================================================
 
@@ -629,49 +648,6 @@ function sauvegarderConfigGlobale(
 
 
 // ======================================================
-// MIGRATION ANCIENNE IDENTITÉ -> LAYTON VALLEY
-// ======================================================
-
-function migrerAncienneIdentiteLayton(valeur) {
-
-    let modifie = false;
-
-    function parcourir(element) {
-
-        if (typeof element === 'string') {
-            const nouveau = element
-                .replace(/ORYUM SYSTEMS/gi, 'LAYTON VALLEY')
-                .replace(/ORYUM/gi, 'LAYTON VALLEY');
-
-            if (nouveau !== element) {
-                modifie = true;
-            }
-
-            return nouveau;
-        }
-
-        if (Array.isArray(element)) {
-            for (let i = 0; i < element.length; i++) {
-                element[i] = parcourir(element[i]);
-            }
-            return element;
-        }
-
-        if (element && typeof element === 'object') {
-            for (const cle of Object.keys(element)) {
-                element[cle] = parcourir(element[cle]);
-            }
-        }
-
-        return element;
-    }
-
-    parcourir(valeur);
-    return modifie;
-}
-
-
-// ======================================================
 // CHARGER CONFIG D'UN SERVEUR
 // ======================================================
 
@@ -720,20 +696,6 @@ function chargerConfigServeur(
         globalConfig.guilds[
             guildId
         ];
-
-
-    // Migration automatique des anciennes valeurs enregistrées
-    // dans /app/data/config.json (ex. footers de commandes déjà créées).
-    const identiteMigree =
-        migrerAncienneIdentiteLayton(
-            configServeur
-        );
-
-    if (identiteMigree) {
-        sauvegarderConfigGlobale(
-            globalConfig
-        );
-    }
 
     if (
         !Array.isArray(
@@ -2974,6 +2936,34 @@ client.once(
             '🔴 Twitch : vérification toutes les 60 secondes'
         );
 
+
+        // ----------------------------------------------
+        // État serveur : vérification toutes les 30 secondes
+        // ----------------------------------------------
+
+        try {
+            await actualiserTousLesEtatsServeur();
+        }
+        catch (error) {
+            console.error('❌ Vérification initiale état serveur :', error.message);
+        }
+
+        setInterval(
+            async () => {
+                try {
+                    await actualiserTousLesEtatsServeur();
+                }
+                catch (error) {
+                    console.error('❌ Vérification état serveur :', error.message);
+                }
+            },
+            30000
+        );
+
+        console.log(
+            '🖥️ État serveur : vérification toutes les 30 secondes'
+        );
+
     }
 
 );
@@ -4183,6 +4173,326 @@ function creerMenuProfilsVocaux(config, customId, placeholder) {
 }
 
 // ======================================================
+// ÉTAT DU SERVEUR - STATUTS / SÉCURITÉ
+// ======================================================
+
+function obtenirConfigEtatServeur(config) {
+    if (!config.serverStatus || typeof config.serverStatus !== 'object') {
+        config.serverStatus = {};
+    }
+    fusionnerDefauts(config.serverStatus, configBaseServeur().serverStatus);
+    if (!Array.isArray(config.serverStatus.accessRoleIds)) {
+        config.serverStatus.accessRoleIds = [];
+    }
+    return config.serverStatus;
+}
+
+function utilisateurPeutAdministrerEtatServeur(interaction, config) {
+    if (!interaction.member) return false;
+    if (interaction.member.permissions.has(PermissionFlagsBits.Administrator)) return true;
+
+    const roles = obtenirConfigEtatServeur(config).accessRoleIds;
+    return roles.some(roleId => interaction.member.roles?.cache?.has(roleId));
+}
+
+async function fetchAvecTimeout(url, timeoutMs = 5000) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+        return await fetch(url, {
+            signal: controller.signal,
+            headers: { 'User-Agent': 'Layton-Valley-Status/1.0' }
+        });
+    }
+    finally {
+        clearTimeout(timer);
+    }
+}
+
+function normaliserBaseUrl(url = '') {
+    return String(url || '').trim().replace(/\/+$/, '');
+}
+
+function formatUptime(ms) {
+    const totalMinutes = Math.max(0, Math.floor(ms / 60000));
+    const jours = Math.floor(totalMinutes / 1440);
+    const heures = Math.floor((totalMinutes % 1440) / 60);
+    const minutes = totalMinutes % 60;
+    if (jours) return `${jours} j ${heures} h ${minutes} min`;
+    if (heures) return `${heures} h ${minutes} min`;
+    return `${minutes} min`;
+}
+
+async function verifierUrlSimple(url) {
+    const propre = normaliserBaseUrl(url);
+    if (!propre) return { configured: false, online: false, ping: null };
+
+    const debut = Date.now();
+    try {
+        const response = await fetchAvecTimeout(propre, 5000);
+        return {
+            configured: true,
+            online: response.status < 500,
+            ping: Date.now() - debut,
+            status: response.status
+        };
+    }
+    catch (_) {
+        return { configured: true, online: false, ping: null };
+    }
+}
+
+async function verifierServeurRedM(url) {
+    const base = normaliserBaseUrl(url);
+    if (!base) {
+        return { configured: false, online: false, players: null, maxPlayers: null, ping: null };
+    }
+
+    const debut = Date.now();
+    try {
+        const [playersResponse, infoResponse] = await Promise.all([
+            fetchAvecTimeout(`${base}/players.json`, 5000).catch(() => null),
+            fetchAvecTimeout(`${base}/info.json`, 5000).catch(() => null)
+        ]);
+
+        let players = null;
+        let maxPlayers = null;
+
+        if (playersResponse?.ok) {
+            const data = await playersResponse.json().catch(() => null);
+            if (Array.isArray(data)) players = data.length;
+        }
+
+        if (infoResponse?.ok) {
+            const info = await infoResponse.json().catch(() => null);
+            const brut =
+                info?.vars?.sv_maxClients ??
+                info?.vars?.['sv_maxClients'] ??
+                info?.sv_maxclients ??
+                null;
+            const parsed = Number(brut);
+            if (Number.isFinite(parsed) && parsed > 0) maxPlayers = parsed;
+        }
+
+        const online = Boolean(playersResponse?.ok || infoResponse?.ok);
+        return {
+            configured: true,
+            online,
+            players,
+            maxPlayers,
+            ping: online ? Date.now() - debut : null
+        };
+    }
+    catch (_) {
+        return { configured: true, online: false, players: null, maxPlayers: null, ping: null };
+    }
+}
+
+async function verifierCfx() {
+    const debut = Date.now();
+    try {
+        const response = await fetchAvecTimeout('https://status.cfx.re/api/v2/status.json', 5000);
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const data = await response.json();
+        const indicateur = String(data?.status?.indicator || '').toLowerCase();
+        return {
+            online: indicateur === 'none' || indicateur === 'minor',
+            degraded: indicateur === 'minor' || indicateur === 'major',
+            ping: Date.now() - debut
+        };
+    }
+    catch (_) {
+        return { online: false, degraded: false, ping: null };
+    }
+}
+
+function texteEtatService(resultat, options = {}) {
+    if (resultat?.configured === false) return '⚪ Non configuré';
+    if (!resultat?.online) return '🔴 Hors ligne';
+
+    let texte = resultat.degraded ? '🟠 Dégradé' : '🟢 En ligne';
+
+    if (options.players && resultat.players !== null && resultat.players !== undefined) {
+        texte += ` · ${resultat.players}`;
+        if (resultat.maxPlayers) texte += `/${resultat.maxPlayers}`;
+        texte += ' joueurs';
+    }
+
+    if (resultat.ping !== null && resultat.ping !== undefined) {
+        texte += ` · Ping ${resultat.ping} ms`;
+    }
+
+    return texte;
+}
+
+async function collecterEtatServeur(guild, config) {
+    const s = obtenirConfigEtatServeur(config);
+
+    const [serveur, cfx, txAdmin, database, host] = await Promise.all([
+        verifierServeurRedM(s.serverUrl),
+        verifierCfx(),
+        verifierUrlSimple(s.txAdminUrl),
+        verifierUrlSimple(s.databaseHealthUrl),
+        verifierUrlSimple(s.hostHealthUrl)
+    ]);
+
+    return {
+        serveur,
+        cfx,
+        txAdmin,
+        database,
+        host,
+        discord: {
+            configured: true,
+            online: client.isReady(),
+            ping: Number.isFinite(client.ws.ping) ? Math.max(0, Math.round(client.ws.ping)) : null
+        }
+    };
+}
+
+async function creerEmbedEtatServeur(guild, config) {
+    const s = obtenirConfigEtatServeur(config);
+    const etat = await collecterEtatServeur(guild, config);
+
+    const embed = new EmbedBuilder()
+        .setColor(etat.serveur.online ? '#57F287' : '#ED4245')
+        .setTitle('📡 Statuts')
+        .setDescription(
+            s.connectText
+                ? `**Connexion :** \`${String(s.connectText).slice(0, 250)}\``
+                : 'État des services de **Layton Valley**.'
+        )
+        .addFields(
+            {
+                name: 'Serveur',
+                value: `${texteEtatService(etat.serveur, { players: true })}${etat.serveur.online ? `\nUptime bot : ${formatUptime(process.uptime() * 1000)}` : ''}`,
+                inline: true
+            },
+            {
+                name: 'Base de données',
+                value: texteEtatService(etat.database),
+                inline: true
+            },
+            {
+                name: 'CFX',
+                value: texteEtatService({ configured: true, ...etat.cfx }),
+                inline: true
+            },
+            {
+                name: 'Discord',
+                value: texteEtatService(etat.discord),
+                inline: true
+            },
+            {
+                name: 'Hébergeur',
+                value: texteEtatService(etat.host),
+                inline: true
+            },
+            {
+                name: 'txAdmin',
+                value: texteEtatService(etat.txAdmin),
+                inline: true
+            }
+        )
+        .setFooter({
+            text: `Actualisation automatique toutes les ${Math.max(30, Number(s.refreshSeconds) || 30)} secondes`
+        })
+        .setTimestamp();
+
+    return embed;
+}
+
+function creerPanelEtatServeur(guildId) {
+    const config = chargerConfigServeur(guildId);
+    const s = obtenirConfigEtatServeur(config);
+
+    const roles = s.accessRoleIds.length
+        ? s.accessRoleIds.map(id => `<@&${id}>`).join(' • ')
+        : 'Administrateurs Discord uniquement';
+
+    const embed = new EmbedBuilder()
+        .setColor(s.enabled ? '#57F287' : '#ED4245')
+        .setTitle('🖥️ LAYTON VALLEY // ÉTAT DU SERVEUR')
+        .setDescription('Configure le panneau public qui affiche automatiquement l’état des services.')
+        .addFields(
+            { name: '⚙️ État', value: s.enabled ? '✅ Activé' : '❌ Désactivé', inline: true },
+            { name: '📍 Salon', value: s.channelId ? `<#${s.channelId}>` : '❌ Non configuré', inline: true },
+            { name: '⏱️ Actualisation', value: `${Math.max(30, Number(s.refreshSeconds) || 30)} s`, inline: true },
+            { name: '🔐 Accès au module', value: roles, inline: false },
+            { name: '🎮 Serveur RedM', value: s.serverUrl ? `\`${String(s.serverUrl).slice(0, 900)}\`` : '❌ Non configuré', inline: false },
+            { name: '🛠️ txAdmin', value: s.txAdminUrl ? '✅ URL configurée' : '❌ Non configuré', inline: true },
+            { name: '🗄️ BDD', value: s.databaseHealthUrl ? '✅ Health URL configurée' : '⚪ Non configurée', inline: true },
+            { name: '🎮 Hébergeur', value: s.hostHealthUrl ? '✅ Health URL configurée' : '⚪ Non configuré', inline: true }
+        );
+
+    const ligne1 = new ActionRowBuilder().addComponents(
+        new ButtonBuilder().setCustomId('serverstatus_toggle').setLabel(s.enabled ? 'Désactiver' : 'Activer').setEmoji(s.enabled ? '⛔' : '✅').setStyle(s.enabled ? ButtonStyle.Danger : ButtonStyle.Success),
+        new ButtonBuilder().setCustomId('serverstatus_channel').setLabel('Salon').setEmoji('📍').setStyle(ButtonStyle.Primary),
+        new ButtonBuilder().setCustomId('serverstatus_config').setLabel('Configuration').setEmoji('⚙️').setStyle(ButtonStyle.Primary),
+        new ButtonBuilder().setCustomId('serverstatus_roles').setLabel('Accès').setEmoji('🔐').setStyle(ButtonStyle.Secondary)
+    );
+
+    const ligne2 = new ActionRowBuilder().addComponents(
+        new ButtonBuilder().setCustomId('serverstatus_publish').setLabel('Publier / recréer').setEmoji('📤').setStyle(ButtonStyle.Success),
+        new ButtonBuilder().setCustomId('serverstatus_refresh').setLabel('Actualiser').setEmoji('🔄').setStyle(ButtonStyle.Secondary)
+    );
+
+    return { embeds: [embed], components: [ligne1, ligne2, creerLigneRetourAdmin()] };
+}
+
+async function publierOuMettreAJourEtatServeur(guild, forcerRecreation = false) {
+    const config = chargerConfigServeur(guild.id);
+    const s = obtenirConfigEtatServeur(config);
+    if (!s.channelId) throw new Error('Aucun salon de statut configuré.');
+
+    const salon =
+        guild.channels.cache.get(s.channelId) ||
+        await guild.channels.fetch(s.channelId).catch(() => null);
+
+    if (!salon || !salon.isTextBased()) {
+        throw new Error('Le salon de statut est introuvable ou invalide.');
+    }
+
+    const embed = await creerEmbedEtatServeur(guild, config);
+    let message = null;
+
+    if (!forcerRecreation && s.messageId) {
+        message = await salon.messages.fetch(s.messageId).catch(() => null);
+    }
+
+    if (message) {
+        await message.edit({ embeds: [embed] });
+    }
+    else {
+        message = await salon.send({ embeds: [embed] });
+        s.messageId = message.id;
+    }
+
+    s.lastUpdateAt = Date.now();
+    sauvegarderConfigServeur(guild.id, config);
+    return message;
+}
+
+async function actualiserTousLesEtatsServeur() {
+    for (const guild of client.guilds.cache.values()) {
+        try {
+            const config = chargerConfigServeur(guild.id);
+            const s = obtenirConfigEtatServeur(config);
+            if (!s.enabled || !s.channelId) continue;
+
+            const intervalle = Math.max(30, Number(s.refreshSeconds) || 30) * 1000;
+            if (s.lastUpdateAt && Date.now() - Number(s.lastUpdateAt) < intervalle - 1000) continue;
+
+            await publierOuMettreAJourEtatServeur(guild, false);
+        }
+        catch (error) {
+            console.error(`❌ État serveur [${guild.name}] :`, error.message);
+        }
+    }
+}
+
+
+// ======================================================
 // COMMANDES PERSONNALISÉES
 // ======================================================
 
@@ -4293,6 +4603,7 @@ function creerPanelPrincipalAdmin(guild) {
         new ButtonBuilder().setCustomId('admin_verification').setLabel('Vérification').setEmoji('✅').setStyle(ButtonStyle.Success),
         new ButtonBuilder().setCustomId('admin_tempvoices').setLabel('Vocaux éphémères').setEmoji('🔊').setStyle(ButtonStyle.Primary),
         new ButtonBuilder().setCustomId('admin_commands').setLabel('Commandes').setEmoji('⌨️').setStyle(ButtonStyle.Primary),
+        new ButtonBuilder().setCustomId('admin_serverstatus').setLabel('État serveur').setEmoji('🖥️').setStyle(ButtonStyle.Secondary),
         new ButtonBuilder().setCustomId('admin_access').setLabel('Accès Bot').setEmoji('🔐').setStyle(ButtonStyle.Secondary)
     );
 
@@ -4415,6 +4726,228 @@ client.on(
                 await interaction.update(panel);
                 return;
             }
+
+            // ==================================================
+            // ÉTAT DU SERVEUR - ADMIN
+            // ==================================================
+
+            if (interaction.isButton() && interaction.customId === 'admin_serverstatus') {
+                const config = chargerConfigServeur(interaction.guild.id);
+                if (!utilisateurPeutAdministrerEtatServeur(interaction, config)) {
+                    await interaction.reply({
+                        content: '❌ Ce module est réservé aux Administrateurs Discord et aux rôles techniques autorisés.',
+                        flags: MessageFlags.Ephemeral
+                    });
+                    programmerSuppressionEphemere(interaction, 15000);
+                    return;
+                }
+                await interaction.update(creerPanelEtatServeur(interaction.guild.id));
+                return;
+            }
+
+            if (
+                (interaction.isButton() && interaction.customId.startsWith('serverstatus_')) ||
+                (interaction.isChannelSelectMenu() && interaction.customId === 'serverstatus_channel_select') ||
+                (interaction.isRoleSelectMenu() && interaction.customId === 'serverstatus_roles_select') ||
+                (interaction.isModalSubmit() && interaction.customId === 'serverstatus_config_modal')
+            ) {
+                const config = chargerConfigServeur(interaction.guild.id);
+                if (!utilisateurPeutAdministrerEtatServeur(interaction, config)) {
+                    if (interaction.isRepliable()) {
+                        await interaction.reply({
+                            content: '❌ Accès au module État serveur refusé.',
+                            flags: MessageFlags.Ephemeral
+                        }).catch(() => {});
+                    }
+                    return;
+                }
+            }
+
+            if (interaction.isButton() && interaction.customId === 'serverstatus_toggle') {
+                const config = chargerConfigServeur(interaction.guild.id);
+                const s = obtenirConfigEtatServeur(config);
+                s.enabled = !s.enabled;
+                sauvegarderConfigServeur(interaction.guild.id, config);
+                await interaction.update(creerPanelEtatServeur(interaction.guild.id));
+                return;
+            }
+
+            if (interaction.isButton() && interaction.customId === 'serverstatus_channel') {
+                const row = new ActionRowBuilder().addComponents(
+                    new ChannelSelectMenuBuilder()
+                        .setCustomId('serverstatus_channel_select')
+                        .setPlaceholder('Choisis le salon du panneau de statut')
+                        .setChannelTypes(ChannelType.GuildText)
+                        .setMinValues(1)
+                        .setMaxValues(1)
+                );
+                await interaction.reply({
+                    content: '📍 Choisis le salon dans lequel Layton Valley affichera les statuts.',
+                    components: [row],
+                    flags: MessageFlags.Ephemeral
+                });
+                return;
+            }
+
+            if (interaction.isChannelSelectMenu() && interaction.customId === 'serverstatus_channel_select') {
+                const config = chargerConfigServeur(interaction.guild.id);
+                const s = obtenirConfigEtatServeur(config);
+                s.channelId = interaction.values[0];
+                s.messageId = '';
+                sauvegarderConfigServeur(interaction.guild.id, config);
+                await interaction.update({
+                    content: `✅ Salon de statut configuré : <#${s.channelId}>`,
+                    components: []
+                });
+                programmerSuppressionEphemere(interaction, 15000);
+                return;
+            }
+
+            if (interaction.isButton() && interaction.customId === 'serverstatus_roles') {
+                const row = new ActionRowBuilder().addComponents(
+                    new RoleSelectMenuBuilder()
+                        .setCustomId('serverstatus_roles_select')
+                        .setPlaceholder('Rôles techniques autorisés')
+                        .setMinValues(0)
+                        .setMaxValues(10)
+                );
+                await interaction.reply({
+                    content: '🔐 Sélectionne les rôles autorisés à ouvrir ce module.\n**Les Administrateurs Discord restent toujours autorisés.**\n\nLaisse vide pour réserver le module uniquement aux Administrateurs.',
+                    components: [row],
+                    flags: MessageFlags.Ephemeral
+                });
+                return;
+            }
+
+            if (interaction.isRoleSelectMenu() && interaction.customId === 'serverstatus_roles_select') {
+                const config = chargerConfigServeur(interaction.guild.id);
+                const s = obtenirConfigEtatServeur(config);
+                s.accessRoleIds = [...interaction.values].slice(0, 10);
+                sauvegarderConfigServeur(interaction.guild.id, config);
+                const texte = s.accessRoleIds.length
+                    ? s.accessRoleIds.map(id => `<@&${id}>`).join(' • ')
+                    : 'Administrateurs Discord uniquement';
+                await interaction.update({
+                    content: `✅ Accès au module configuré : ${texte}`,
+                    components: []
+                });
+                programmerSuppressionEphemere(interaction, 15000);
+                return;
+            }
+
+            if (interaction.isButton() && interaction.customId === 'serverstatus_config') {
+                const config = chargerConfigServeur(interaction.guild.id);
+                const s = obtenirConfigEtatServeur(config);
+
+                const modal = new ModalBuilder()
+                    .setCustomId('serverstatus_config_modal')
+                    .setTitle('Configuration des statuts');
+
+                modal.addComponents(
+                    new ActionRowBuilder().addComponents(
+                        new TextInputBuilder()
+                            .setCustomId('ss_connect')
+                            .setLabel('Texte de connexion')
+                            .setStyle(TextInputStyle.Short)
+                            .setRequired(false)
+                            .setMaxLength(250)
+                            .setValue(String(s.connectText || '').slice(0, 250))
+                            .setPlaceholder('connect play.laytonvalley.fr')
+                    ),
+                    new ActionRowBuilder().addComponents(
+                        new TextInputBuilder()
+                            .setCustomId('ss_server')
+                            .setLabel('URL serveur RedM / CFX')
+                            .setStyle(TextInputStyle.Short)
+                            .setRequired(false)
+                            .setMaxLength(500)
+                            .setValue(String(s.serverUrl || '').slice(0, 500))
+                            .setPlaceholder('http://IP:30120')
+                    ),
+                    new ActionRowBuilder().addComponents(
+                        new TextInputBuilder()
+                            .setCustomId('ss_tx')
+                            .setLabel('URL txAdmin')
+                            .setStyle(TextInputStyle.Short)
+                            .setRequired(false)
+                            .setMaxLength(500)
+                            .setValue(String(s.txAdminUrl || '').slice(0, 500))
+                            .setPlaceholder('https://txadmin.exemple.fr')
+                    ),
+                    new ActionRowBuilder().addComponents(
+                        new TextInputBuilder()
+                            .setCustomId('ss_db')
+                            .setLabel('URL Health BDD (optionnel)')
+                            .setStyle(TextInputStyle.Short)
+                            .setRequired(false)
+                            .setMaxLength(500)
+                            .setValue(String(s.databaseHealthUrl || '').slice(0, 500))
+                            .setPlaceholder('https://status.exemple.fr/database')
+                    ),
+                    new ActionRowBuilder().addComponents(
+                        new TextInputBuilder()
+                            .setCustomId('ss_host')
+                            .setLabel('URL Health hébergeur (optionnel)')
+                            .setStyle(TextInputStyle.Short)
+                            .setRequired(false)
+                            .setMaxLength(500)
+                            .setValue(String(s.hostHealthUrl || '').slice(0, 500))
+                            .setPlaceholder('https://status.exemple.fr/server')
+                    )
+                );
+
+                await interaction.showModal(modal);
+                return;
+            }
+
+            if (interaction.isModalSubmit() && interaction.customId === 'serverstatus_config_modal') {
+                const config = chargerConfigServeur(interaction.guild.id);
+                const s = obtenirConfigEtatServeur(config);
+
+                s.connectText = interaction.fields.getTextInputValue('ss_connect').trim();
+                s.serverUrl = interaction.fields.getTextInputValue('ss_server').trim();
+                s.txAdminUrl = interaction.fields.getTextInputValue('ss_tx').trim();
+                s.databaseHealthUrl = interaction.fields.getTextInputValue('ss_db').trim();
+                s.hostHealthUrl = interaction.fields.getTextInputValue('ss_host').trim();
+
+                sauvegarderConfigServeur(interaction.guild.id, config);
+
+                await interaction.reply({
+                    content: '✅ Configuration des statuts enregistrée.',
+                    flags: MessageFlags.Ephemeral
+                });
+                programmerSuppressionEphemere(interaction, 15000);
+                return;
+            }
+
+            if (interaction.isButton() && interaction.customId === 'serverstatus_publish') {
+                await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+                try {
+                    const message = await publierOuMettreAJourEtatServeur(interaction.guild, true);
+                    await interaction.editReply(`✅ Nouveau panneau de statut publié : ${message.url}`);
+                    programmerSuppressionEphemere(interaction, 15000);
+                }
+                catch (error) {
+                    await interaction.editReply(`❌ Publication impossible : ${error.message}`);
+                    programmerSuppressionEphemere(interaction, 15000);
+                }
+                return;
+            }
+
+            if (interaction.isButton() && interaction.customId === 'serverstatus_refresh') {
+                await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+                try {
+                    const message = await publierOuMettreAJourEtatServeur(interaction.guild, false);
+                    await interaction.editReply(`✅ Statuts actualisés : ${message.url}`);
+                    programmerSuppressionEphemere(interaction, 15000);
+                }
+                catch (error) {
+                    await interaction.editReply(`❌ Actualisation impossible : ${error.message}`);
+                    programmerSuppressionEphemere(interaction, 15000);
+                }
+                return;
+            }
+
 
             // ==================================================
             // COMMANDES PERSONNALISÉES - ADMIN
