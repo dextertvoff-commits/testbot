@@ -629,6 +629,49 @@ function sauvegarderConfigGlobale(
 
 
 // ======================================================
+// MIGRATION ANCIENNE IDENTITÉ -> LAYTON VALLEY
+// ======================================================
+
+function migrerAncienneIdentiteLayton(valeur) {
+
+    let modifie = false;
+
+    function parcourir(element) {
+
+        if (typeof element === 'string') {
+            const nouveau = element
+                .replace(/ORYUM SYSTEMS/gi, 'LAYTON VALLEY')
+                .replace(/ORYUM/gi, 'LAYTON VALLEY');
+
+            if (nouveau !== element) {
+                modifie = true;
+            }
+
+            return nouveau;
+        }
+
+        if (Array.isArray(element)) {
+            for (let i = 0; i < element.length; i++) {
+                element[i] = parcourir(element[i]);
+            }
+            return element;
+        }
+
+        if (element && typeof element === 'object') {
+            for (const cle of Object.keys(element)) {
+                element[cle] = parcourir(element[cle]);
+            }
+        }
+
+        return element;
+    }
+
+    parcourir(valeur);
+    return modifie;
+}
+
+
+// ======================================================
 // CHARGER CONFIG D'UN SERVEUR
 // ======================================================
 
@@ -677,6 +720,20 @@ function chargerConfigServeur(
         globalConfig.guilds[
             guildId
         ];
+
+
+    // Migration automatique des anciennes valeurs enregistrées
+    // dans /app/data/config.json (ex. footers de commandes déjà créées).
+    const identiteMigree =
+        migrerAncienneIdentiteLayton(
+            configServeur
+        );
+
+    if (identiteMigree) {
+        sauvegarderConfigGlobale(
+            globalConfig
+        );
+    }
 
     if (
         !Array.isArray(
