@@ -4125,7 +4125,81 @@ function creerMenuProfilsVocaux(config, customId, placeholder) {
     );
 }
 
-// ======================================================\n// COMMANDES PERSONNALISÉES\n// ======================================================\n\nfunction obtenirCommandesPersonnalisees(config) {\n    if (!config.customCommands || typeof config.customCommands !== 'object') config.customCommands = { commands: {} };\n    if (!config.customCommands.commands || typeof config.customCommands.commands !== 'object') config.customCommands.commands = {};\n    return config.customCommands.commands;\n}\n\nfunction parserOptionsCommande(texte = '') {\n    const types = { text: 3, texte: 3, string: 3, user: 6, utilisateur: 6, membre: 6, role: 8, rôle: 8, channel: 7, salon: 7, integer: 4, nombre: 4, boolean: 5, booleen: 5, bool: 5 };\n    const options = [];\n    for (const ligne of String(texte).split(/\\r?\\n/).map(v => v.trim()).filter(Boolean)) {\n        const [nomBrut, typeBrut = 'text', requisBrut = 'optional', ...descParts] = ligne.split(':');\n        const name = String(nomBrut || '').trim().toLowerCase().replace(/[^a-z0-9_-]/g, '-').slice(0, 32);\n        const type = types[String(typeBrut).trim().toLowerCase()];\n        if (!name || !type) continue;\n        options.push({ name, type, required: ['required','requis','obligatoire','oui','true'].includes(String(requisBrut).trim().toLowerCase()), description: (descParts.join(':').trim() || `Valeur pour ${name}`).slice(0,100) });\n        if (options.length >= 25) break;\n    }\n    return options;\n}\n\nfunction commandeVersDiscord(cmd) {\n    const data = { name: cmd.name, description: (cmd.description || `Commande /${cmd.name}`).slice(0,100), type: 1, options: [] };\n    for (const opt of (cmd.options || [])) data.options.push({ type: opt.type, name: opt.name, description: opt.description || `Valeur pour ${opt.name}`, required: !!opt.required });\n    return data;\n}\n\nasync function synchroniserCommandesServeur(guildId) {\n    const config = chargerConfigServeur(guildId);\n    const customs = Object.values(obtenirCommandesPersonnalisees(config));\n    await rest.put(Routes.applicationGuildCommands(CLIENT_ID, guildId), { body: customs.map(commandeVersDiscord) });\n}\n\nfunction creerPanelCommandes(guildId) {\n    const config = chargerConfigServeur(guildId);\n    const commandes = Object.values(obtenirCommandesPersonnalisees(config));\n    const liste = commandes.length ? commandes.slice(0,20).map(c => `• **/${c.name}** — ${c.description || 'Sans description'}`).join('\\n') : 'Aucune commande personnalisée.';\n    const embed = new EmbedBuilder().setColor('#F47B20').setTitle('⌨️ COMMANDES PERSONNALISÉES').setDescription('Crée et gère les commandes slash de ce serveur directement depuis ORYUM SYSTEMS.').addFields({name:'📋 Commandes',value:liste});\n    const row = new ActionRowBuilder().addComponents(\n        new ButtonBuilder().setCustomId('customcmd_create').setLabel('Créer').setEmoji('➕').setStyle(ButtonStyle.Success),\n        new ButtonBuilder().setCustomId('customcmd_edit').setLabel('Modifier').setEmoji('✏️').setStyle(ButtonStyle.Primary),\n        new ButtonBuilder().setCustomId('customcmd_delete').setLabel('Supprimer').setEmoji('🗑️').setStyle(ButtonStyle.Danger),\n        new ButtonBuilder().setCustomId('customcmd_permissions').setLabel('Permissions').setEmoji('🔐').setStyle(ButtonStyle.Secondary)\n    );\n    return { embeds:[embed], components:[row, creerLigneRetourAdmin()] };\n}\n\nfunction menuCommandesPersonnalisees(config, customId, placeholder) {\n    const cmds = Object.values(obtenirCommandesPersonnalisees(config)).slice(0,25);\n    if (!cmds.length) return null;\n    return new ActionRowBuilder().addComponents(new StringSelectMenuBuilder().setCustomId(customId).setPlaceholder(placeholder).addOptions(cmds.map(c => ({label:`/${c.name}`.slice(0,100),description:(c.description||'Commande personnalisée').slice(0,100),value:c.name}))));\n}\n\nfunction remplacerVariablesCommande(texte, interaction, cmd) {\n    let out = String(texte || '');\n    out = out.replaceAll('{AUTEUR}', interaction.user.username).replaceAll('{AUTEUR_MENTION}', `<@${interaction.user.id}>`).replaceAll('{SERVEUR}', interaction.guild.name);\n    for (const opt of (cmd.options || [])) {\n        const key = `{${opt.name.toUpperCase()}}`;\n        let value = '';\n        if (opt.type === 6) { const u = interaction.options.getUser(opt.name); value = u ? `<@${u.id}>` : ''; }\n        else if (opt.type === 8) { const r = interaction.options.getRole(opt.name); value = r ? `<@&${r.id}>` : ''; }\n        else if (opt.type === 7) { const c = interaction.options.getChannel(opt.name); value = c ? `<#${c.id}>` : ''; }\n        else if (opt.type === 4) { const v = interaction.options.getInteger(opt.name); value = v == null ? '' : String(v); }\n        else if (opt.type === 5) { const v = interaction.options.getBoolean(opt.name); value = v == null ? '' : (v ? 'Oui' : 'Non'); }\n        else value = interaction.options.getString(opt.name) || '';\n        out = out.replaceAll(key, value);\n        if (opt.type === 6) out = out.replaceAll(`{${opt.name.toUpperCase()}_MENTION}`, value);\n    }\n    return out;\n}\n\n// ======================================================
+// ======================================================
+// COMMANDES PERSONNALISÉES
+// ======================================================
+
+function obtenirCommandesPersonnalisees(config) {
+    if (!config.customCommands || typeof config.customCommands !== 'object') config.customCommands = { commands: {} };
+    if (!config.customCommands.commands || typeof config.customCommands.commands !== 'object') config.customCommands.commands = {};
+    return config.customCommands.commands;
+}
+
+function parserOptionsCommande(texte = '') {
+    const types = { text: 3, texte: 3, string: 3, user: 6, utilisateur: 6, membre: 6, role: 8, rôle: 8, channel: 7, salon: 7, integer: 4, nombre: 4, boolean: 5, booleen: 5, bool: 5 };
+    const options = [];
+    for (const ligne of String(texte).split(/\\r?\n/).map(v => v.trim()).filter(Boolean)) {
+        const [nomBrut, typeBrut = 'text', requisBrut = 'optional', ...descParts] = ligne.split(':');
+        const name = String(nomBrut || '').trim().toLowerCase().replace(/[^a-z0-9_-]/g, '-').slice(0, 32);
+        const type = types[String(typeBrut).trim().toLowerCase()];
+        if (!name || !type) continue;
+        options.push({ name, type, required: ['required','requis','obligatoire','oui','true'].includes(String(requisBrut).trim().toLowerCase()), description: (descParts.join(':').trim() || `Valeur pour ${name}`).slice(0,100) });
+        if (options.length >= 25) break;
+    }
+    return options;
+}
+
+function commandeVersDiscord(cmd) {
+    const data = { name: cmd.name, description: (cmd.description || `Commande /${cmd.name}`).slice(0,100), type: 1, options: [] };
+    for (const opt of (cmd.options || [])) data.options.push({ type: opt.type, name: opt.name, description: opt.description || `Valeur pour ${opt.name}`, required: !!opt.required });
+    return data;
+}
+
+async function synchroniserCommandesServeur(guildId) {
+    const config = chargerConfigServeur(guildId);
+    const customs = Object.values(obtenirCommandesPersonnalisees(config));
+    await rest.put(Routes.applicationGuildCommands(CLIENT_ID, guildId), { body: customs.map(commandeVersDiscord) });
+}
+
+function creerPanelCommandes(guildId) {
+    const config = chargerConfigServeur(guildId);
+    const commandes = Object.values(obtenirCommandesPersonnalisees(config));
+    const liste = commandes.length ? commandes.slice(0,20).map(c => `• **/${c.name}** — ${c.description || 'Sans description'}`).join('\n') : 'Aucune commande personnalisée.';
+    const embed = new EmbedBuilder().setColor('#F47B20').setTitle('⌨️ COMMANDES PERSONNALISÉES').setDescription('Crée et gère les commandes slash de ce serveur directement depuis ORYUM SYSTEMS.').addFields({name:'📋 Commandes',value:liste});
+    const row = new ActionRowBuilder().addComponents(
+        new ButtonBuilder().setCustomId('customcmd_create').setLabel('Créer').setEmoji('➕').setStyle(ButtonStyle.Success),
+        new ButtonBuilder().setCustomId('customcmd_edit').setLabel('Modifier').setEmoji('✏️').setStyle(ButtonStyle.Primary),
+        new ButtonBuilder().setCustomId('customcmd_delete').setLabel('Supprimer').setEmoji('🗑️').setStyle(ButtonStyle.Danger),
+        new ButtonBuilder().setCustomId('customcmd_permissions').setLabel('Permissions').setEmoji('🔐').setStyle(ButtonStyle.Secondary)
+    );
+    return { embeds:[embed], components:[row, creerLigneRetourAdmin()] };
+}
+
+function menuCommandesPersonnalisees(config, customId, placeholder) {
+    const cmds = Object.values(obtenirCommandesPersonnalisees(config)).slice(0,25);
+    if (!cmds.length) return null;
+    return new ActionRowBuilder().addComponents(new StringSelectMenuBuilder().setCustomId(customId).setPlaceholder(placeholder).addOptions(cmds.map(c => ({label:`/${c.name}`.slice(0,100),description:(c.description||'Commande personnalisée').slice(0,100),value:c.name}))));
+}
+
+function remplacerVariablesCommande(texte, interaction, cmd) {
+    let out = String(texte || '');
+    out = out.replaceAll('{AUTEUR}', interaction.user.username).replaceAll('{AUTEUR_MENTION}', `<@${interaction.user.id}>`).replaceAll('{SERVEUR}', interaction.guild.name);
+    for (const opt of (cmd.options || [])) {
+        const key = `{${opt.name.toUpperCase()}}`;
+        let value = '';
+        if (opt.type === 6) { const u = interaction.options.getUser(opt.name); value = u ? `<@${u.id}>` : ''; }
+        else if (opt.type === 8) { const r = interaction.options.getRole(opt.name); value = r ? `<@&${r.id}>` : ''; }
+        else if (opt.type === 7) { const c = interaction.options.getChannel(opt.name); value = c ? `<#${c.id}>` : ''; }
+        else if (opt.type === 4) { const v = interaction.options.getInteger(opt.name); value = v == null ? '' : String(v); }
+        else if (opt.type === 5) { const v = interaction.options.getBoolean(opt.name); value = v == null ? '' : (v ? 'Oui' : 'Non'); }
+        else value = interaction.options.getString(opt.name) || '';
+        out = out.replaceAll(key, value);
+        if (opt.type === 6) out = out.replaceAll(`{${opt.name.toUpperCase()}_MENTION}`, value);
+    }
+    return out;
+}
+
+// ======================================================
 // DÉBUT DES INTERACTIONS
 // ======================================================
 
@@ -4285,7 +4359,86 @@ client.on(
                 return;
             }
 
-            // ==================================================\n            // COMMANDES PERSONNALISÉES - ADMIN\n            // ==================================================\n\n            if (interaction.isButton() && interaction.customId === 'admin_commands') {\n                const config = chargerConfigServeur(interaction.guild.id);\n                if (!utilisateurPeutAdministrerBot(interaction, config)) return interaction.reply({content:'❌ Accès refusé.',flags:MessageFlags.Ephemeral});\n                await interaction.update(creerPanelCommandes(interaction.guild.id));\n                return;\n            }\n\n            if (interaction.isButton() && interaction.customId === 'customcmd_create') {\n                const modal = new ModalBuilder().setCustomId('customcmd_create_modal').setTitle('Créer une commande');\n                modal.addComponents(\n                    new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('cc_name').setLabel('Nom de la commande (sans /)').setStyle(TextInputStyle.Short).setRequired(true).setMaxLength(32).setPlaceholder('convoc')),\n                    new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('cc_desc').setLabel('Description').setStyle(TextInputStyle.Short).setRequired(true).setMaxLength(100).setPlaceholder('Convoquer un membre')),\n                    new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('cc_options').setLabel('Options : nom:type:obligatoire').setStyle(TextInputStyle.Paragraph).setRequired(false).setPlaceholder('membre:user:obligatoire\\nmotif:text:optionnel\\nlieu:text:optionnel')),\n                    new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('cc_title').setLabel('Titre de l’embed').setStyle(TextInputStyle.Short).setRequired(false).setMaxLength(256).setPlaceholder('📜 CONVOCATION OFFICIELLE')),\n                    new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('cc_body').setLabel('Texte / variables {MEMBRE}, {MOTIF}...').setStyle(TextInputStyle.Paragraph).setRequired(true).setMaxLength(4000).setPlaceholder('{MEMBRE}, vous êtes convoqué par {AUTEUR_MENTION}.'))\n                );\n                await interaction.showModal(modal); return;\n            }\n\n            if (interaction.isModalSubmit() && interaction.customId === 'customcmd_create_modal') {\n                const config = chargerConfigServeur(interaction.guild.id);\n                if (!utilisateurPeutAdministrerBot(interaction, config)) return interaction.reply({content:'❌ Accès refusé.',flags:MessageFlags.Ephemeral});\n                const cmds = obtenirCommandesPersonnalisees(config);\n                const name = interaction.fields.getTextInputValue('cc_name').trim().toLowerCase().replace(/[^a-z0-9_-]/g,'-').slice(0,32);\n                if (!name || ['bot-panel','ticket-panel','vocal'].includes(name)) return interaction.reply({content:'❌ Nom invalide ou réservé.',flags:MessageFlags.Ephemeral});\n                cmds[name] = { name, description:interaction.fields.getTextInputValue('cc_desc').trim(), options:parserOptionsCommande(interaction.fields.getTextInputValue('cc_options')), title:interaction.fields.getTextInputValue('cc_title').trim(), body:interaction.fields.getTextInputValue('cc_body'), color:'#F47B20', footer:'ORYUM SYSTEMS', allowedRoleIds:Array.isArray(config.access.staffRoleIds)?[...config.access.staffRoleIds]:[], pingUser:true };\n                sauvegarderConfigServeur(interaction.guild.id, config);\n                try { await synchroniserCommandesServeur(interaction.guild.id); } catch(e) { console.error('❌ Sync commande:',e); }\n                await interaction.reply({content:`✅ La commande **/${name}** a été créée et synchronisée sur ce serveur.`,flags:MessageFlags.Ephemeral}); programmerSuppressionEphemere(interaction,15000); return;\n            }\n\n            if (interaction.isButton() && ['customcmd_edit','customcmd_delete','customcmd_permissions'].includes(interaction.customId)) {\n                const config=chargerConfigServeur(interaction.guild.id); const map={customcmd_edit:['customcmd_edit_select','Choisis la commande à modifier'],customcmd_delete:['customcmd_delete_select','Choisis la commande à supprimer'],customcmd_permissions:['customcmd_perm_select','Choisis la commande']};\n                const menu=menuCommandesPersonnalisees(config,map[interaction.customId][0],map[interaction.customId][1]);\n                if(!menu) return interaction.reply({content:'❌ Aucune commande personnalisée.',flags:MessageFlags.Ephemeral});\n                await interaction.reply({content:'⌨️ Sélectionne une commande :',components:[menu],flags:MessageFlags.Ephemeral}); return;\n            }\n\n            if (interaction.isStringSelectMenu() && interaction.customId === 'customcmd_delete_select') {\n                const config=chargerConfigServeur(interaction.guild.id); const name=interaction.values[0]; delete obtenirCommandesPersonnalisees(config)[name]; sauvegarderConfigServeur(interaction.guild.id,config); await synchroniserCommandesServeur(interaction.guild.id).catch(()=>{}); await interaction.update({content:`✅ **/${name}** supprimée.`,components:[]}); return;\n            }\n\n            if (interaction.isStringSelectMenu() && interaction.customId === 'customcmd_edit_select') {\n                const config=chargerConfigServeur(interaction.guild.id); const cmd=obtenirCommandesPersonnalisees(config)[interaction.values[0]]; if(!cmd) return;\n                const modal=new ModalBuilder().setCustomId(`customcmd_edit_modal:${cmd.name}`).setTitle(`Modifier /${cmd.name}`);\n                const spec=(cmd.options||[]).map(o=>`${o.name}:${o.type===6?'user':o.type===8?'role':o.type===7?'channel':o.type===4?'integer':o.type===5?'boolean':'text'}:${o.required?'obligatoire':'optionnel'}`).join('\\n');\n                modal.addComponents(new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('cc_desc').setLabel('Description').setStyle(TextInputStyle.Short).setRequired(true).setValue(cmd.description||'')),new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('cc_options').setLabel('Options').setStyle(TextInputStyle.Paragraph).setRequired(false).setValue(spec)),new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('cc_title').setLabel('Titre de l’embed').setStyle(TextInputStyle.Short).setRequired(false).setValue(cmd.title||'')),new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('cc_body').setLabel('Texte de l’embed').setStyle(TextInputStyle.Paragraph).setRequired(true).setMaxLength(4000).setValue(String(cmd.body||'').slice(0,4000))));\n                await interaction.showModal(modal); return;\n            }\n\n            if (interaction.isModalSubmit() && interaction.customId.startsWith('customcmd_edit_modal:')) {\n                const name=interaction.customId.split(':')[1]; const config=chargerConfigServeur(interaction.guild.id); const cmd=obtenirCommandesPersonnalisees(config)[name]; if(!cmd) return interaction.reply({content:'❌ Commande introuvable.',flags:MessageFlags.Ephemeral});\n                cmd.description=interaction.fields.getTextInputValue('cc_desc').trim(); cmd.options=parserOptionsCommande(interaction.fields.getTextInputValue('cc_options')); cmd.title=interaction.fields.getTextInputValue('cc_title').trim(); cmd.body=interaction.fields.getTextInputValue('cc_body'); sauvegarderConfigServeur(interaction.guild.id,config); await synchroniserCommandesServeur(interaction.guild.id).catch(()=>{}); await interaction.reply({content:`✅ **/${name}** modifiée.`,flags:MessageFlags.Ephemeral}); programmerSuppressionEphemere(interaction,15000); return;\n            }\n\n            if (interaction.isStringSelectMenu() && interaction.customId === 'customcmd_perm_select') {\n                const name=interaction.values[0]; const row=new ActionRowBuilder().addComponents(new RoleSelectMenuBuilder().setCustomId(`customcmd_roles:${name}`).setPlaceholder('Rôles autorisés (vide = administrateurs)').setMinValues(0).setMaxValues(10)); await interaction.update({content:`🔐 Rôles autorisés à utiliser **/${name}** :`,components:[row]}); return;\n            }\n\n            if (interaction.isRoleSelectMenu() && interaction.customId.startsWith('customcmd_roles:')) {\n                const name=interaction.customId.split(':')[1]; const config=chargerConfigServeur(interaction.guild.id); const cmd=obtenirCommandesPersonnalisees(config)[name]; if(!cmd) return; cmd.allowedRoleIds=[...interaction.values]; sauvegarderConfigServeur(interaction.guild.id,config); await interaction.update({content:`✅ Permissions de **/${name}** enregistrées.`,components:[]}); return;\n            }\n\n            // Exécution d'une commande personnalisée\n            if (interaction.isChatInputCommand() && !['bot-panel','ticket-panel','vocal'].includes(interaction.commandName)) {\n                const config=chargerConfigServeur(interaction.guild.id); const cmd=obtenirCommandesPersonnalisees(config)[interaction.commandName];\n                if (cmd) {\n                    const roles=Array.isArray(cmd.allowedRoleIds)?cmd.allowedRoleIds:[]; const admin=interaction.member.permissions.has(PermissionFlagsBits.Administrator); const autorise=admin || roles.some(id=>interaction.member.roles.cache.has(id));\n                    if (!autorise) { await interaction.reply({content:'❌ Tu n’as pas l’autorisation d’utiliser cette commande.',flags:MessageFlags.Ephemeral}); programmerSuppressionEphemere(interaction,15000); return; }\n                    const embed=new EmbedBuilder().setColor(couleurValide(cmd.color,'#F47B20')).setDescription(remplacerVariablesCommande(cmd.body,interaction,cmd)).setTimestamp(); if(cmd.title) embed.setTitle(remplacerVariablesCommande(cmd.title,interaction,cmd)); if(cmd.footer) embed.setFooter({text:cmd.footer});\n                    let content; if(cmd.pingUser){ const u=(cmd.options||[]).find(o=>o.type===6); if(u){ const user=interaction.options.getUser(u.name); if(user) content=`<@${user.id}>`; } }\n                    await interaction.reply({content,embeds:[embed],allowedMentions:{users:content?[content.replace(/\\D/g,'')]:[]}}); return;\n                }\n            }\n\n            // ==================================================
+            // ==================================================
+            // COMMANDES PERSONNALISÉES - ADMIN
+            // ==================================================
+
+            if (interaction.isButton() && interaction.customId === 'admin_commands') {
+                const config = chargerConfigServeur(interaction.guild.id);
+                if (!utilisateurPeutAdministrerBot(interaction, config)) return interaction.reply({content:'❌ Accès refusé.',flags:MessageFlags.Ephemeral});
+                await interaction.update(creerPanelCommandes(interaction.guild.id));
+                return;
+            }
+
+            if (interaction.isButton() && interaction.customId === 'customcmd_create') {
+                const modal = new ModalBuilder().setCustomId('customcmd_create_modal').setTitle('Créer une commande');
+                modal.addComponents(
+                    new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('cc_name').setLabel('Nom de la commande (sans /)').setStyle(TextInputStyle.Short).setRequired(true).setMaxLength(32).setPlaceholder('convoc')),
+                    new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('cc_desc').setLabel('Description').setStyle(TextInputStyle.Short).setRequired(true).setMaxLength(100).setPlaceholder('Convoquer un membre')),
+                    new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('cc_options').setLabel('Options : nom:type:obligatoire').setStyle(TextInputStyle.Paragraph).setRequired(false).setPlaceholder('membre:user:obligatoire\nmotif:text:optionnel\nlieu:text:optionnel')),
+                    new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('cc_title').setLabel('Titre de l’embed').setStyle(TextInputStyle.Short).setRequired(false).setMaxLength(256).setPlaceholder('📜 CONVOCATION OFFICIELLE')),
+                    new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('cc_body').setLabel('Texte / variables {MEMBRE}, {MOTIF}...').setStyle(TextInputStyle.Paragraph).setRequired(true).setMaxLength(4000).setPlaceholder('{MEMBRE}, vous êtes convoqué par {AUTEUR_MENTION}.'))
+                );
+                await interaction.showModal(modal); return;
+            }
+
+            if (interaction.isModalSubmit() && interaction.customId === 'customcmd_create_modal') {
+                const config = chargerConfigServeur(interaction.guild.id);
+                if (!utilisateurPeutAdministrerBot(interaction, config)) return interaction.reply({content:'❌ Accès refusé.',flags:MessageFlags.Ephemeral});
+                const cmds = obtenirCommandesPersonnalisees(config);
+                const name = interaction.fields.getTextInputValue('cc_name').trim().toLowerCase().replace(/[^a-z0-9_-]/g,'-').slice(0,32);
+                if (!name || ['bot-panel','ticket-panel','vocal'].includes(name)) return interaction.reply({content:'❌ Nom invalide ou réservé.',flags:MessageFlags.Ephemeral});
+                cmds[name] = { name, description:interaction.fields.getTextInputValue('cc_desc').trim(), options:parserOptionsCommande(interaction.fields.getTextInputValue('cc_options')), title:interaction.fields.getTextInputValue('cc_title').trim(), body:interaction.fields.getTextInputValue('cc_body'), color:'#F47B20', footer:'ORYUM SYSTEMS', allowedRoleIds:Array.isArray(config.access.staffRoleIds)?[...config.access.staffRoleIds]:[], pingUser:true };
+                sauvegarderConfigServeur(interaction.guild.id, config);
+                try { await synchroniserCommandesServeur(interaction.guild.id); } catch(e) { console.error('❌ Sync commande:',e); }
+                await interaction.reply({content:`✅ La commande **/${name}** a été créée et synchronisée sur ce serveur.`,flags:MessageFlags.Ephemeral}); programmerSuppressionEphemere(interaction,15000); return;
+            }
+
+            if (interaction.isButton() && ['customcmd_edit','customcmd_delete','customcmd_permissions'].includes(interaction.customId)) {
+                const config=chargerConfigServeur(interaction.guild.id); const map={customcmd_edit:['customcmd_edit_select','Choisis la commande à modifier'],customcmd_delete:['customcmd_delete_select','Choisis la commande à supprimer'],customcmd_permissions:['customcmd_perm_select','Choisis la commande']};
+                const menu=menuCommandesPersonnalisees(config,map[interaction.customId][0],map[interaction.customId][1]);
+                if(!menu) return interaction.reply({content:'❌ Aucune commande personnalisée.',flags:MessageFlags.Ephemeral});
+                await interaction.reply({content:'⌨️ Sélectionne une commande :',components:[menu],flags:MessageFlags.Ephemeral}); return;
+            }
+
+            if (interaction.isStringSelectMenu() && interaction.customId === 'customcmd_delete_select') {
+                const config=chargerConfigServeur(interaction.guild.id); const name=interaction.values[0]; delete obtenirCommandesPersonnalisees(config)[name]; sauvegarderConfigServeur(interaction.guild.id,config); await synchroniserCommandesServeur(interaction.guild.id).catch(()=>{}); await interaction.update({content:`✅ **/${name}** supprimée.`,components:[]}); return;
+            }
+
+            if (interaction.isStringSelectMenu() && interaction.customId === 'customcmd_edit_select') {
+                const config=chargerConfigServeur(interaction.guild.id); const cmd=obtenirCommandesPersonnalisees(config)[interaction.values[0]]; if(!cmd) return;
+                const modal=new ModalBuilder().setCustomId(`customcmd_edit_modal:${cmd.name}`).setTitle(`Modifier /${cmd.name}`);
+                const spec=(cmd.options||[]).map(o=>`${o.name}:${o.type===6?'user':o.type===8?'role':o.type===7?'channel':o.type===4?'integer':o.type===5?'boolean':'text'}:${o.required?'obligatoire':'optionnel'}`).join('\n');
+                modal.addComponents(new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('cc_desc').setLabel('Description').setStyle(TextInputStyle.Short).setRequired(true).setValue(cmd.description||'')),new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('cc_options').setLabel('Options').setStyle(TextInputStyle.Paragraph).setRequired(false).setValue(spec)),new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('cc_title').setLabel('Titre de l’embed').setStyle(TextInputStyle.Short).setRequired(false).setValue(cmd.title||'')),new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('cc_body').setLabel('Texte de l’embed').setStyle(TextInputStyle.Paragraph).setRequired(true).setMaxLength(4000).setValue(String(cmd.body||'').slice(0,4000))));
+                await interaction.showModal(modal); return;
+            }
+
+            if (interaction.isModalSubmit() && interaction.customId.startsWith('customcmd_edit_modal:')) {
+                const name=interaction.customId.split(':')[1]; const config=chargerConfigServeur(interaction.guild.id); const cmd=obtenirCommandesPersonnalisees(config)[name]; if(!cmd) return interaction.reply({content:'❌ Commande introuvable.',flags:MessageFlags.Ephemeral});
+                cmd.description=interaction.fields.getTextInputValue('cc_desc').trim(); cmd.options=parserOptionsCommande(interaction.fields.getTextInputValue('cc_options')); cmd.title=interaction.fields.getTextInputValue('cc_title').trim(); cmd.body=interaction.fields.getTextInputValue('cc_body'); sauvegarderConfigServeur(interaction.guild.id,config); await synchroniserCommandesServeur(interaction.guild.id).catch(()=>{}); await interaction.reply({content:`✅ **/${name}** modifiée.`,flags:MessageFlags.Ephemeral}); programmerSuppressionEphemere(interaction,15000); return;
+            }
+
+            if (interaction.isStringSelectMenu() && interaction.customId === 'customcmd_perm_select') {
+                const name=interaction.values[0]; const row=new ActionRowBuilder().addComponents(new RoleSelectMenuBuilder().setCustomId(`customcmd_roles:${name}`).setPlaceholder('Rôles autorisés (vide = administrateurs)').setMinValues(0).setMaxValues(10)); await interaction.update({content:`🔐 Rôles autorisés à utiliser **/${name}** :`,components:[row]}); return;
+            }
+
+            if (interaction.isRoleSelectMenu() && interaction.customId.startsWith('customcmd_roles:')) {
+                const name=interaction.customId.split(':')[1]; const config=chargerConfigServeur(interaction.guild.id); const cmd=obtenirCommandesPersonnalisees(config)[name]; if(!cmd) return; cmd.allowedRoleIds=[...interaction.values]; sauvegarderConfigServeur(interaction.guild.id,config); await interaction.update({content:`✅ Permissions de **/${name}** enregistrées.`,components:[]}); return;
+            }
+
+            // Exécution d'une commande personnalisée
+            if (interaction.isChatInputCommand() && !['bot-panel','ticket-panel','vocal'].includes(interaction.commandName)) {
+                const config=chargerConfigServeur(interaction.guild.id); const cmd=obtenirCommandesPersonnalisees(config)[interaction.commandName];
+                if (cmd) {
+                    const roles=Array.isArray(cmd.allowedRoleIds)?cmd.allowedRoleIds:[]; const admin=interaction.member.permissions.has(PermissionFlagsBits.Administrator); const autorise=admin || roles.some(id=>interaction.member.roles.cache.has(id));
+                    if (!autorise) { await interaction.reply({content:'❌ Tu n’as pas l’autorisation d’utiliser cette commande.',flags:MessageFlags.Ephemeral}); programmerSuppressionEphemere(interaction,15000); return; }
+                    const embed=new EmbedBuilder().setColor(couleurValide(cmd.color,'#F47B20')).setDescription(remplacerVariablesCommande(cmd.body,interaction,cmd)).setTimestamp(); if(cmd.title) embed.setTitle(remplacerVariablesCommande(cmd.title,interaction,cmd)); if(cmd.footer) embed.setFooter({text:cmd.footer});
+                    let content; if(cmd.pingUser){ const u=(cmd.options||[]).find(o=>o.type===6); if(u){ const user=interaction.options.getUser(u.name); if(user) content=`<@${user.id}>`; } }
+                    await interaction.reply({content,embeds:[embed],allowedMentions:{users:content?[content.replace(/\\D/g,'')]:[]}}); return;
+                }
+            }
+
+            // ==================================================
             // PANEL ACCÈS ORYUM SYSTEMS
             // ==================================================
 
