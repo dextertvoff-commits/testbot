@@ -115,12 +115,12 @@ function configBaseServeur() {
     return {
 
         // ==================================================
-        // ACCÈS ADMINISTRATION ORYUM SYSTEMS
+        // ACCÈS ADMINISTRATION LAYTON VALLEY
         // ==================================================
 
         access: {
 
-            // Rôles autorisés à utiliser les commandes et panneaux ORYUM SYSTEMS
+            // Rôles autorisés à utiliser les commandes et panneaux LAYTON VALLEY
             staffRoleIds:
                 []
 
@@ -150,7 +150,7 @@ function configBaseServeur() {
             panel: {
 
                 title:
-                    '🎫 ORYUM SYSTEMS // SUPPORT',
+                    '🎫 LAYTON VALLEY // SUPPORT',
 
                 description:
                     '**Besoin d’aide ?**\n\nClique sur le bouton pour ouvrir une demande.',
@@ -165,7 +165,7 @@ function configBaseServeur() {
                     '#F47B20',
 
                 footer:
-                    'ORYUM SYSTEMS • Support',
+                    'LAYTON VALLEY • Support',
 
                 thumbnailUrl:
                     ''
@@ -188,7 +188,7 @@ function configBaseServeur() {
                     '#F47B20',
 
                 footer:
-                    'ORYUM SYSTEMS • Support',
+                    'LAYTON VALLEY • Support',
 
                 showAvatar:
                     true
@@ -211,7 +211,7 @@ function configBaseServeur() {
                 '#F47B20',
 
             footer:
-                'ORYUM SYSTEMS • Annonces'
+                'LAYTON VALLEY • Annonces'
 
         },
 
@@ -246,7 +246,7 @@ function configBaseServeur() {
                     '#9146FF',
 
                 footer:
-                    'ORYUM SYSTEMS • Twitch',
+                    'LAYTON VALLEY • Twitch',
 
                 buttonLabel:
                     'Regarder le live',
@@ -356,7 +356,7 @@ function configBaseServeur() {
                 '#F47B20',
 
             panelFooter:
-                'ORYUM SYSTEMS • Vérification',
+                'LAYTON VALLEY • Vérification',
 
             buttonLabel:
                 'Valider le règlement',
@@ -936,7 +936,7 @@ function calculerDuree(
 
 
 // ======================================================
-// ACCÈS ADMINISTRATION ORYUM SYSTEMS
+// ACCÈS ADMINISTRATION LAYTON VALLEY
 // ======================================================
 
 function utilisateurPeutAdministrerBot(
@@ -1422,7 +1422,7 @@ async function envoyerMessagePersonnalise(
                         client.user.id &&
 
                     hook.name ===
-                        'ORYUM SYSTEMS-WEBHOOK'
+                        'LAYTON VALLEY-WEBHOOK'
 
             );
 
@@ -1439,7 +1439,7 @@ async function envoyerMessagePersonnalise(
                 await channel.createWebhook({
 
                     name:
-                        'ORYUM SYSTEMS-WEBHOOK',
+                        'LAYTON VALLEY-WEBHOOK',
 
                     reason:
                         'Apparence personnalisée du bot'
@@ -2816,7 +2816,7 @@ client.once(
         );
 
         console.log(
-            '🟠 ORYUM SYSTEMS // MULTI-SERVEURS ACTIF'
+            '🟠 LAYTON VALLEY // MULTI-SERVEURS ACTIF'
         );
 
         console.log(
@@ -3030,7 +3030,7 @@ client.on(
                 ) {
                     await member.roles.add(
                         roleAttente,
-                        'ORYUM SYSTEMS • En attente de vérification'
+                        'LAYTON VALLEY • En attente de vérification'
                     );
                 }
 
@@ -4013,12 +4013,12 @@ async function appliquerPermissionsSalonCreateur(guild, profil, anciensRoleIds =
 
     for (const roleId of anciensRoleIds) {
         if (!rolesActuels.has(roleId)) {
-            await channel.permissionOverwrites.delete(roleId, 'ORYUM SYSTEMS - nettoyage ancienne permission vocal').catch(() => {});
+            await channel.permissionOverwrites.delete(roleId, 'LAYTON VALLEY - nettoyage ancienne permission vocal').catch(() => {});
         }
     }
 
     if (!rolesConnexion.length && !rolesVisibilite.length) {
-        await channel.permissionOverwrites.delete(guild.roles.everyone.id, 'ORYUM SYSTEMS - accès public vocal créateur').catch(() => {});
+        await channel.permissionOverwrites.delete(guild.roles.everyone.id, 'LAYTON VALLEY - accès public vocal créateur').catch(() => {});
         return;
     }
 
@@ -4026,25 +4026,25 @@ async function appliquerPermissionsSalonCreateur(guild, profil, anciensRoleIds =
         await channel.permissionOverwrites.edit(
             guild.roles.everyone.id,
             { ViewChannel: false, Connect: false },
-            { reason: 'ORYUM SYSTEMS - restriction visibilité vocal créateur' }
+            { reason: 'LAYTON VALLEY - restriction visibilité vocal créateur' }
         ).catch(() => {});
     } else {
         await channel.permissionOverwrites.edit(
             guild.roles.everyone.id,
             { ViewChannel: null, Connect: rolesConnexion.length ? false : null },
-            { reason: 'ORYUM SYSTEMS - restriction connexion vocal créateur' }
+            { reason: 'LAYTON VALLEY - restriction connexion vocal créateur' }
         ).catch(() => {});
     }
 
     for (const roleId of rolesVisibilite) {
         if (guild.roles.cache.has(roleId)) {
-            await channel.permissionOverwrites.edit(roleId, { ViewChannel: true }, { reason: 'ORYUM SYSTEMS - rôle autorisé à voir le vocal créateur' }).catch(() => {});
+            await channel.permissionOverwrites.edit(roleId, { ViewChannel: true }, { reason: 'LAYTON VALLEY - rôle autorisé à voir le vocal créateur' }).catch(() => {});
         }
     }
 
     for (const roleId of rolesConnexion) {
         if (guild.roles.cache.has(roleId)) {
-            await channel.permissionOverwrites.edit(roleId, { ViewChannel: true, Connect: true, Speak: true }, { reason: 'ORYUM SYSTEMS - rôle autorisé vocal créateur' }).catch(() => {});
+            await channel.permissionOverwrites.edit(roleId, { ViewChannel: true, Connect: true, Speak: true }, { reason: 'LAYTON VALLEY - rôle autorisé vocal créateur' }).catch(() => {});
         }
     }
 }
@@ -4087,8 +4087,8 @@ function creerEmbedConfigVocauxTemporaires(guild, config) {
 
     return new EmbedBuilder()
         .setColor(tv.enabled ? '#57F287' : '#ED4245')
-        .setTitle('🔊 ORYUM SYSTEMS // VOCAUX ÉPHÉMÈRES')
-        .setDescription('Crée plusieurs salons déclencheurs. Lorsqu’un membre rejoint l’un d’eux, ORYUM crée automatiquement son vocal, le déplace dedans puis supprime le salon lorsqu’il est vide.')
+        .setTitle('🔊 LAYTON VALLEY // VOCAUX ÉPHÉMÈRES')
+        .setDescription('Crée plusieurs salons déclencheurs. Lorsqu’un membre rejoint l’un d’eux, LAYTON VALLEY crée automatiquement son vocal, le déplace dedans puis supprime le salon lorsqu’il est vide.')
         .addFields(
             { name: '⚙️ État', value: tv.enabled ? '✅ Activé' : '❌ Désactivé', inline: true },
             { name: '🧩 Salons créateurs', value: `${profils.length}`, inline: true },
@@ -4165,7 +4165,7 @@ function creerPanelCommandes(guildId) {
     const config = chargerConfigServeur(guildId);
     const commandes = Object.values(obtenirCommandesPersonnalisees(config));
     const liste = commandes.length ? commandes.slice(0,20).map(c => `• **/${c.name}** — ${c.description || 'Sans description'}`).join('\n') : 'Aucune commande personnalisée.';
-    const embed = new EmbedBuilder().setColor('#F47B20').setTitle('⌨️ COMMANDES PERSONNALISÉES').setDescription('Crée et gère les commandes slash de ce serveur directement depuis ORYUM SYSTEMS.').addFields({name:'📋 Commandes',value:liste});
+    const embed = new EmbedBuilder().setColor('#F47B20').setTitle('⌨️ COMMANDES PERSONNALISÉES').setDescription('Crée et gère les commandes slash de ce serveur directement depuis LAYTON VALLEY.').addFields({name:'📋 Commandes',value:liste});
     const row = new ActionRowBuilder().addComponents(
         new ButtonBuilder().setCustomId('customcmd_create').setLabel('Créer').setEmoji('➕').setStyle(ButtonStyle.Success),
         new ButtonBuilder().setCustomId('customcmd_edit').setLabel('Modifier').setEmoji('✏️').setStyle(ButtonStyle.Primary),
@@ -4220,7 +4220,7 @@ function creerLigneRetourAdmin() {
 function creerPanelPrincipalAdmin(guild) {
     const embed = new EmbedBuilder()
         .setColor('#F47B20')
-        .setTitle('⚙️ ORYUM SYSTEMS // PANNEAU ADMIN')
+        .setTitle('⚙️ LAYTON VALLEY // PANNEAU ADMIN')
         .setDescription(`Configuration de **${guild.name}**.\n\nGérez les modules et paramètres disponibles depuis ce panneau.`)
         .setFooter({ text: `Serveur ID : ${guild.id}` });
 
@@ -4307,7 +4307,7 @@ client.on(
                     await interaction.reply({
 
                         content:
-                            '❌ Tu n’as pas l’autorisation d’utiliser ORYUM SYSTEMS sur ce serveur.',
+                            '❌ Tu n’as pas l’autorisation d’utiliser LAYTON VALLEY sur ce serveur.',
 
                         flags:
                             MessageFlags.Ephemeral
@@ -4346,7 +4346,7 @@ client.on(
 
                 if (!utilisateurPeutAdministrerBot(interaction, config)) {
                     await interaction.reply({
-                        content: '❌ Tu n’as pas l’autorisation d’utiliser ORYUM SYSTEMS sur ce serveur.',
+                        content: '❌ Tu n’as pas l’autorisation d’utiliser LAYTON VALLEY sur ce serveur.',
                         flags: MessageFlags.Ephemeral
                     });
                     programmerSuppressionEphemere(interaction, 15000);
@@ -4388,7 +4388,7 @@ client.on(
                 const cmds = obtenirCommandesPersonnalisees(config);
                 const name = interaction.fields.getTextInputValue('cc_name').trim().toLowerCase().replace(/[^a-z0-9_-]/g,'-').slice(0,32);
                 if (!name || ['bot-panel','ticket-panel','vocal'].includes(name)) return interaction.reply({content:'❌ Nom invalide ou réservé.',flags:MessageFlags.Ephemeral});
-                cmds[name] = { name, description:interaction.fields.getTextInputValue('cc_desc').trim(), options:parserOptionsCommande(interaction.fields.getTextInputValue('cc_options')), title:interaction.fields.getTextInputValue('cc_title').trim(), body:interaction.fields.getTextInputValue('cc_body'), color:'#F47B20', footer:'ORYUM SYSTEMS', allowedRoleIds:Array.isArray(config.access.staffRoleIds)?[...config.access.staffRoleIds]:[], pingUser:true };
+                cmds[name] = { name, description:interaction.fields.getTextInputValue('cc_desc').trim(), options:parserOptionsCommande(interaction.fields.getTextInputValue('cc_options')), title:interaction.fields.getTextInputValue('cc_title').trim(), body:interaction.fields.getTextInputValue('cc_body'), color:'#F47B20', footer:'LAYTON VALLEY', allowedRoleIds:Array.isArray(config.access.staffRoleIds)?[...config.access.staffRoleIds]:[], pingUser:true };
                 sauvegarderConfigServeur(interaction.guild.id, config);
                 try { await synchroniserCommandesServeur(interaction.guild.id); } catch(e) { console.error('❌ Sync commande:',e); }
                 await interaction.reply({content:`✅ La commande **/${name}** a été créée et synchronisée sur ce serveur.`,flags:MessageFlags.Ephemeral}); programmerSuppressionEphemere(interaction,15000); return;
@@ -4445,7 +4445,7 @@ client.on(
             }
 
             // ==================================================
-            // PANEL ACCÈS ORYUM SYSTEMS
+            // PANEL ACCÈS LAYTON VALLEY
             // ==================================================
 
             if (
@@ -4487,11 +4487,11 @@ client.on(
                         )
 
                         .setTitle(
-                            '🔐 ORYUM SYSTEMS // ACCÈS AU BOT'
+                            '🔐 LAYTON VALLEY // ACCÈS AU BOT'
                         )
 
                         .setDescription(
-                            'Choisis les rôles autorisés à utiliser les commandes et panneaux d’administration d’ORYUM SYSTEMS.\n\n' +
+                            'Choisis les rôles autorisés à utiliser les commandes et panneaux d’administration d’LAYTON VALLEY.\n\n' +
                             '**Les Administrateurs Discord restent toujours autorisés.**'
                         )
 
@@ -4598,7 +4598,7 @@ client.on(
                         )
 
                         .setPlaceholder(
-                            'Choisis les rôles autorisés à utiliser ORYUM'
+                            'Choisis les rôles autorisés à utiliser LAYTON VALLEY'
                         )
 
                         .setMinValues(
@@ -4625,7 +4625,7 @@ client.on(
                 await interaction.reply({
 
                     content:
-                        '🔐 **Accès à ORYUM SYSTEMS**\n' +
+                        '🔐 **Accès à LAYTON VALLEY**\n' +
                         'Sélectionne jusqu’à **10 rôles** autorisés à utiliser le bot et ses panneaux de configuration.\n\n' +
                         `**Actuellement :** ${texteActuel}\n\n` +
                         'La nouvelle sélection remplacera la sélection actuelle.',
@@ -4702,7 +4702,7 @@ client.on(
                 await interaction.update({
 
                     content:
-                        `✅ Accès à ORYUM SYSTEMS configuré pour : ${liste}`,
+                        `✅ Accès à LAYTON VALLEY configuré pour : ${liste}`,
 
                     components:
                         []
@@ -4745,7 +4745,7 @@ client.on(
                 await interaction.update({
 
                     content:
-                        '✅ ORYUM SYSTEMS est maintenant utilisable uniquement par les Administrateurs Discord.',
+                        '✅ LAYTON VALLEY est maintenant utilisable uniquement par les Administrateurs Discord.',
 
                     embeds:
                         [],
@@ -4838,7 +4838,7 @@ client.on(
                     await interaction.update({ content: '❌ Catégorie introuvable.', components: [] });
                     return;
                 }
-                const triggerChannel = await interaction.guild.channels.create({ name: pending.triggerName, type: ChannelType.GuildVoice, parent: categoryId, reason: `ORYUM SYSTEMS - salon créateur configuré par ${interaction.user.tag}` });
+                const triggerChannel = await interaction.guild.channels.create({ name: pending.triggerName, type: ChannelType.GuildVoice, parent: categoryId, reason: `LAYTON VALLEY - salon créateur configuré par ${interaction.user.tag}` });
                 const tv = obtenirConfigVocauxTemporaires(config);
                 tv.creators[triggerChannel.id] = { triggerChannelId: triggerChannel.id, triggerName: pending.triggerName, categoryId, voiceNameFormat: pending.voiceNameFormat, userLimit: pending.userLimit, allowedRoleIds: [], visibleRoleIds: [] };
                 temporaryVoiceSetupPending.delete(key);
@@ -5096,7 +5096,7 @@ La visibilité et le droit de rejoindre sont deux réglages séparés.`,
                 const p = tv.creators[profileId];
                 if (!p) return;
                 const channel = interaction.guild.channels.cache.get(p.triggerChannelId);
-                if (channel) await channel.delete('ORYUM SYSTEMS - suppression du salon créateur').catch(() => {});
+                if (channel) await channel.delete('LAYTON VALLEY - suppression du salon créateur').catch(() => {});
                 delete tv.creators[profileId];
                 sauvegarderConfigServeur(interaction.guild.id, config);
                 await interaction.update({ content: '✅ Salon créateur supprimé.', components: [] });
@@ -5168,7 +5168,7 @@ La visibilité et le droit de rejoindre sont deux réglages séparés.`,
 
                 const embed = new EmbedBuilder()
                     .setColor(v.enabled ? '#57F287' : '#ED4245')
-                    .setTitle('✅ ORYUM SYSTEMS // VÉRIFICATION')
+                    .setTitle('✅ LAYTON VALLEY // VÉRIFICATION')
                     .setDescription(
                         'Configure la validation du règlement, les rôles automatiques et le pseudo RP.'
                     )
@@ -5984,7 +5984,7 @@ La visibilité et le droit de rejoindre sont deux réglages séparés.`,
                     try {
                         await interaction.member.roles.add(
                             role,
-                            'ORYUM SYSTEMS • Validation du règlement'
+                            'LAYTON VALLEY • Validation du règlement'
                         );
                         rolesAjoutes.push(roleId);
                     }
@@ -6006,7 +6006,7 @@ La visibilité et le droit de rejoindre sont deux réglages séparés.`,
                     ) {
                         await interaction.member.roles.remove(
                             roleAttente,
-                            'ORYUM SYSTEMS • Validation terminée'
+                            'LAYTON VALLEY • Validation terminée'
                         ).catch(() => {});
                     }
                 }
@@ -6022,7 +6022,7 @@ La visibilité et le droit de rejoindre sont deux réglages séparés.`,
                     try {
                         await interaction.member.setNickname(
                             pseudo,
-                            'ORYUM SYSTEMS • Identité RP validée'
+                            'LAYTON VALLEY • Identité RP validée'
                         );
                         pseudoModifie = true;
                     }
@@ -6038,7 +6038,7 @@ La visibilité et le droit de rejoindre sont deux réglages séparés.`,
                     message += `\n🏷️ Pseudo demandé : **${pseudo}**`;
 
                     if (!pseudoModifie) {
-                        message += '\n⚠️ ORYUM n’a pas pu modifier ton pseudo. Vérifie la hiérarchie des rôles du bot.';
+                        message += '\n⚠️ LAYTON VALLEY n’a pas pu modifier ton pseudo. Vérifie la hiérarchie des rôles du bot.';
                     }
                 }
                 else {
@@ -15042,7 +15042,7 @@ client.on(Events.VoiceStateUpdate, async (oldState, newState) => {
             if (active) {
                 const oldChannel = guild.channels.cache.get(oldState.channelId);
                 if (!oldChannel || oldChannel.members.size === 0) {
-                    if (oldChannel) await oldChannel.delete('ORYUM SYSTEMS - vocal éphémère vide').catch(() => {});
+                    if (oldChannel) await oldChannel.delete('LAYTON VALLEY - vocal éphémère vide').catch(() => {});
                     delete tv.activeChannels[oldState.channelId];
                     sauvegarderConfigServeur(guild.id, config);
                 }
@@ -15057,7 +15057,7 @@ client.on(Events.VoiceStateUpdate, async (oldState, newState) => {
         const member = newState.member;
         if (!member || member.user.bot) return;
         if (!membreAutoriseProfilVocal(member, profil)) {
-            await member.voice.disconnect('ORYUM SYSTEMS - rôle non autorisé pour ce salon créateur').catch(() => {});
+            await member.voice.disconnect('LAYTON VALLEY - rôle non autorisé pour ce salon créateur').catch(() => {});
             return;
         }
         const categorie = guild.channels.cache.get(profil.categoryId);
@@ -15102,7 +15102,7 @@ client.on(Events.VoiceStateUpdate, async (oldState, newState) => {
             parent: parentId,
             userLimit: Math.max(0, Math.min(99, Number(profil.userLimit) || 0)),
             permissionOverwrites,
-            reason: `ORYUM SYSTEMS - vocal éphémère de ${member.user.tag}`
+            reason: `LAYTON VALLEY - vocal éphémère de ${member.user.tag}`
         });
 
         tv.activeChannels[tempChannel.id] = { ownerId: member.id, profileId, createdAt: Date.now() };
@@ -15113,7 +15113,7 @@ client.on(Events.VoiceStateUpdate, async (oldState, newState) => {
         } catch (moveError) {
             delete tv.activeChannels[tempChannel.id];
             sauvegarderConfigServeur(guild.id, config);
-            await tempChannel.delete('ORYUM SYSTEMS - déplacement impossible').catch(() => {});
+            await tempChannel.delete('LAYTON VALLEY - déplacement impossible').catch(() => {});
             console.error('❌ Impossible de déplacer le membre dans son vocal éphémère :', moveError);
         }
     } catch (error) {
@@ -15193,7 +15193,7 @@ async function demarrerBot() {
     );
 
     console.log(
-        '🟠 ORYUM SYSTEMS // DÉMARRAGE'
+        '🟠 LAYTON VALLEY // DÉMARRAGE'
     );
 
     console.log(
